@@ -1,0 +1,37 @@
+ -----
+ MyVD LDAP Virtual Directory
+ -----
+ The MyVD Team
+ -----
+
+MyVD LDAP Virtual Directory
+
+ Welcome to the home of MyVD, a Java based LDAP Virtual Directory.
+
+* What is a virtual directory?
+
+ A virtual directory is a service (typically provied via LDAP) that allows for the integration of multiple data repositories in a transparent manner to an application.  There are several use cases for a virtual directory including (but not limmited to):
+ 
+ * Creating a view of a user with attributes stored in multiple repositories
+
+ * Formatting user and group object for an application
+
+ * Creating a larger directory from smaller ones
+
+ []
+
+[images/overview.png] MyVD Overview	
+
+News
+
+* MyVD 0.7 Released December 24, 2006
+
+ The MyVD project is proud to announce the release of MyVD 0.7.  This release has:
+ 
+  * Start scripts for both windows and *nix
+  
+  * Documentation of all inserts and functionality
+  
+  * A default configuration
+  
+ MyVD 0.7 can be downloaded at the {{{http://sourceforge.net/project/showfiles.php?group_id=184128} MyVD Downloads}} page
