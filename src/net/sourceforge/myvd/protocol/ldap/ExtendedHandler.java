@@ -21,6 +21,8 @@ package net.sourceforge.myvd.protocol.ldap;
 
 import java.util.HashMap;
 
+import javax.naming.InvalidNameException;
+
 import net.sourceforge.myvd.chain.DeleteInterceptorChain;
 import net.sourceforge.myvd.chain.ExetendedOperationInterceptorChain;
 import net.sourceforge.myvd.inserts.Insert;
@@ -29,17 +31,15 @@ import net.sourceforge.myvd.types.DistinguishedName;
 import net.sourceforge.myvd.types.ExtendedOperation;
 import net.sourceforge.myvd.types.Password;
 
-import org.apache.ldap.common.NotImplementedException;
-import org.apache.ldap.common.message.DeleteResponse;
-import org.apache.ldap.common.message.DeleteResponseImpl;
-import org.apache.ldap.common.message.ExtendedRequest;
-import org.apache.ldap.common.message.ExtendedResponse;
-import org.apache.ldap.common.message.ExtendedResponseImpl;
-import org.apache.ldap.common.message.LdapResultImpl;
-import org.apache.ldap.common.message.ResultCodeEnum;
-import org.apache.ldap.common.util.ExceptionUtils;
-import org.apache.mina.protocol.ProtocolSession;
-import org.apache.mina.protocol.handler.MessageHandler;
+
+import org.apache.directory.server.core.configuration.StartupConfiguration;
+import org.apache.directory.server.ldap.support.LdapMessageHandler;
+import org.apache.directory.shared.ldap.message.ExtendedRequest;
+import org.apache.directory.shared.ldap.message.LdapResult;
+import org.apache.directory.shared.ldap.message.ResultCodeEnum;
+import org.apache.directory.shared.ldap.name.LdapDN;
+import org.apache.directory.shared.ldap.util.ExceptionUtils;
+import org.apache.mina.common.IoSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,18 +54,17 @@ import com.novell.ldap.LDAPExtendedOperation;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 161724 $
  */
-public class ExtendedHandler implements MessageHandler,LdapInfo
+public class ExtendedHandler implements LdapMessageHandler,LdapInfo
 {
 	
 	 private static final Logger LOG = LoggerFactory.getLogger( ExtendedHandler.class );
 		private Insert[] globalChain;
 		private Router router;
 		
-    public void messageReceived( ProtocolSession session, Object request )
+    public void messageReceived( IoSession session, Object request )
     {
         ExtendedRequest req = (ExtendedRequest) request;
-        ExtendedResponse resp = new ExtendedResponseImpl( req.getMessageId() );
-        resp.setLdapResult( new LdapResultImpl( resp ) );
+        LdapResult result = req.getResultResponse().getLdapResult();
         
 HashMap userSession = null;
         
@@ -102,15 +101,19 @@ HashMap userSession = null;
            
            code = ResultCodeEnum.getResultCodeEnum(e.getResultCode());
            
-            resp.getLdapResult().setResultCode( code );
-            resp.getLdapResult().setErrorMessage( msg );
+            result.setResultCode( code );
+            result.setErrorMessage( msg );
 
             if( e.getMatchedDN() != null )
             {
-                resp.getLdapResult().setMatchedDn( e.getMatchedDN().toString() );
+                try {
+					result.setMatchedDn( new LdapDN(e.getMatchedDN().toString()) );
+				} catch (InvalidNameException e1) {
+					LOG.error("Error",e1);
+				}
             }
 
-            session.write( resp );
+            session.write( result );
             return;
         } catch (Throwable t) {
         	
@@ -127,23 +130,32 @@ HashMap userSession = null;
                 code = ResultCodeEnum.OPERATIONSERROR;
             
 
-            resp.getLdapResult().setResultCode( code );
-            resp.getLdapResult().setErrorMessage( msg );
+            result.setResultCode( code );
+            result.setErrorMessage( msg );
             
 
-            session.write( resp );
+            session.write( result );
             return;
         
     }
 
-        resp.getLdapResult().setResultCode( ResultCodeEnum.SUCCESS );
-        resp.getLdapResult().setMatchedDn( "" );
-        session.write( resp );
+        result.setResultCode( ResultCodeEnum.SUCCESS );
+        try {
+			result.setMatchedDn( new LdapDN("") );
+		} catch (InvalidNameException e) {
+			LOG.error("Error",e);
+		}
+        session.write( result );
     }
 
 	public void setEnv(Insert[] globalChain, Router router) {
 		this.globalChain = globalChain;
 		this.router = router;
+		
+	}
+
+	public void init(StartupConfiguration arg0) {
+		// TODO Auto-generated method stub
 		
 	}
 }

@@ -25,14 +25,16 @@ import java.util.HashMap;
 import javax.naming.NamingException;
 import javax.naming.ldap.LdapContext;
 
+
+import org.apache.directory.server.core.configuration.StartupConfiguration;
+import org.apache.directory.server.ldap.support.LdapMessageHandler;
+import org.apache.mina.common.IoSession;
+
 import net.sourceforge.myvd.inserts.Insert;
 import net.sourceforge.myvd.router.Router;
 import net.sourceforge.myvd.types.DistinguishedName;
 import net.sourceforge.myvd.types.Password;
 import net.sourceforge.myvd.types.SessionVariables;
-
-import org.apache.mina.protocol.ProtocolSession;
-import org.apache.mina.protocol.handler.MessageHandler;
 
 
 
@@ -43,9 +45,9 @@ import org.apache.mina.protocol.handler.MessageHandler;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 161724 $
  */
-public class UnBindHandler implements MessageHandler,LdapInfo
+public class UnBindHandler implements LdapMessageHandler,LdapInfo
 {
-    public void messageReceived( ProtocolSession session, Object request )
+    public void messageReceived( IoSession session, Object request )
     {
 //    	reset the session username and pass
     	HashMap userSession = (HashMap) session.getAttribute("VLDAP_SESSION");
@@ -55,6 +57,11 @@ public class UnBindHandler implements MessageHandler,LdapInfo
     }
 
 	public void setEnv(Insert[] globalChain, Router router) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public void init(StartupConfiguration arg0) {
 		// TODO Auto-generated method stub
 		
 	}
