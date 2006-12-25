@@ -37,10 +37,11 @@ package net.sourceforge.myvd.protocol.ldap;
 import net.sourceforge.myvd.inserts.Insert;
 import net.sourceforge.myvd.router.Router;
 
-import org.apache.ldap.common.NotImplementedException;
-import org.apache.ldap.common.message.AbandonRequest;
-import org.apache.mina.protocol.ProtocolSession;
-import org.apache.mina.protocol.handler.MessageHandler;
+import org.apache.mina.common.IoSession;
+
+import org.apache.directory.server.core.configuration.StartupConfiguration;
+import org.apache.directory.server.ldap.support.LdapMessageHandler;
+import org.apache.directory.shared.ldap.message.AbandonRequestImpl;
 
 
 
@@ -50,11 +51,11 @@ import org.apache.mina.protocol.handler.MessageHandler;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 161724 $
  */
-public class AbandonHandler implements MessageHandler,LdapInfo
+public class AbandonHandler implements LdapMessageHandler,LdapInfo
 {
-    public void messageReceived( ProtocolSession session, Object request )
+    public void messageReceived( IoSession session, Object request )
     {
-        AbandonRequest req = ( AbandonRequest ) request;
+        AbandonRequestImpl req = ( AbandonRequestImpl ) request;
         int abandonedId = req.getAbandoned();
 
         if ( abandonedId < 0 )
@@ -62,10 +63,15 @@ public class AbandonHandler implements MessageHandler,LdapInfo
             return;
         }
         
-        throw new NotImplementedException( "don't know how to do this just yet" );
+        throw new org.apache.directory.shared.ldap.NotImplementedException( "don't know how to do this just yet" );
     }
 
 	public void setEnv(Insert[] globalChain, Router router) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public void init(StartupConfiguration arg0) {
 		// TODO Auto-generated method stub
 		
 	}

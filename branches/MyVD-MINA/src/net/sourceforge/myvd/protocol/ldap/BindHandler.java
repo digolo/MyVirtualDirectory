@@ -51,15 +51,6 @@ import net.sourceforge.myvd.types.DistinguishedName;
 import net.sourceforge.myvd.types.Password;
 import net.sourceforge.myvd.types.SessionVariables;
 
-import org.apache.ldap.common.exception.LdapException;
-import org.apache.ldap.common.message.BindRequest;
-import org.apache.ldap.common.message.BindResponse;
-import org.apache.ldap.common.message.BindResponseImpl;
-import org.apache.ldap.common.message.Control;
-import org.apache.ldap.common.message.LdapResult;
-import org.apache.ldap.common.message.LdapResultImpl;
-import org.apache.ldap.common.message.ResultCodeEnum;
-import org.apache.ldap.common.util.ExceptionUtils;
 
 /*
  * I would like to eventually see these newly introduced dependencies
@@ -71,12 +62,20 @@ import org.apache.ldap.common.util.ExceptionUtils;
  * The changes are the two lines below:
  */
 
-import org.apache.ldap.server.configuration.Configuration;
-import org.apache.ldap.server.configuration.StartupConfiguration;
 
-import org.apache.mina.protocol.ProtocolSession;
-import org.apache.mina.protocol.handler.MessageHandler;
 
+
+import org.apache.directory.server.core.configuration.StartupConfiguration;
+import org.apache.directory.server.ldap.support.LdapMessageHandler;
+import org.apache.directory.shared.ldap.message.BindRequest;
+import org.apache.directory.shared.ldap.message.BindResponse;
+import org.apache.directory.shared.ldap.message.BindResponseImpl;
+import org.apache.directory.shared.ldap.message.Control;
+import org.apache.directory.shared.ldap.message.LdapResult;
+import org.apache.directory.shared.ldap.message.LdapResultImpl;
+import org.apache.directory.shared.ldap.message.ResultCodeEnum;
+import org.apache.directory.shared.ldap.util.ExceptionUtils;
+import org.apache.mina.common.IoSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +90,7 @@ import com.novell.ldap.LDAPException;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 231083 $
  */
-public class BindHandler implements MessageHandler,LdapInfo
+public class BindHandler implements LdapMessageHandler,LdapInfo
 {
     private static final Logger LOG = LoggerFactory.getLogger( BindHandler.class );
     private static final Control[] EMPTY = new Control[0];
@@ -100,13 +99,13 @@ public class BindHandler implements MessageHandler,LdapInfo
     Router router;
 
 
-    public void messageReceived( ProtocolSession session, Object request )
+    public void messageReceived( IoSession session, Object request )
     {
 
         BindRequest req = ( BindRequest ) request;
         BindResponse resp = new BindResponseImpl( req.getMessageId() );
-        LdapResult result = new LdapResultImpl( resp );
-        resp.setLdapResult( result );
+        LdapResult result = req.getResultResponse().getLdapResult();
+        
 
        
         // if the bind request is not simple then we freak: no strong auth yet
@@ -120,7 +119,7 @@ public class BindHandler implements MessageHandler,LdapInfo
 
        
         boolean emptyCredentials = req.getCredentials() == null || req.getCredentials().length == 0;
-        boolean emptyDn = req.getName() == null || req.getName().length() == 0;
+        boolean emptyDn = req.getName() == null || req.getName().size() == 0;
 
         /*if ( emptyCredentials && emptyDn && ! allowAnonymousBinds )
         {
@@ -133,14 +132,14 @@ public class BindHandler implements MessageHandler,LdapInfo
 
         // clone the environment first then add the required security settings
 
-        String dn = req.getName();
+        String dn = req.getName().toString();
 
         //System.err.println("Bind credentials : " + dn);
         
         byte[] creds = req.getCredentials();
 
         
-        Control[] connCtls = ( Control[] ) req.getControls().toArray( EMPTY );
+        Control[] connCtls = ( Control[] ) req.getControls().values().toArray( EMPTY );
 
         HashMap userSession = null;
         
@@ -222,6 +221,12 @@ public class BindHandler implements MessageHandler,LdapInfo
 	public void setEnv(Insert[] globalChain, Router router) {
 		this.globalChain = globalChain;
 		this.router = router;
+		
+	}
+
+
+	public void init(StartupConfiguration arg0) {
+		// TODO Auto-generated method stub
 		
 	}
 }

@@ -21,9 +21,11 @@ package net.sourceforge.myvd.protocol.ldap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 import javax.naming.Context;
 
@@ -33,58 +35,77 @@ import net.sourceforge.myvd.types.DistinguishedName;
 import net.sourceforge.myvd.types.Password;
 import net.sourceforge.myvd.types.SessionVariables;
 
-import org.apache.asn1.codec.mina.Asn1CodecDecoder;
-import org.apache.asn1.codec.mina.Asn1CodecEncoder;
-import org.apache.ldap.common.exception.LdapNamingException;
-import org.apache.ldap.common.message.AbandonRequest;
-import org.apache.ldap.common.message.AbandonRequestImpl;
-import org.apache.ldap.common.message.AddRequest;
-import org.apache.ldap.common.message.AddRequestImpl;
-import org.apache.ldap.common.message.BindRequest;
-import org.apache.ldap.common.message.BindRequestImpl;
-import org.apache.ldap.common.message.CompareRequest;
-import org.apache.ldap.common.message.CompareRequestImpl;
-import org.apache.ldap.common.message.DeleteRequest;
-import org.apache.ldap.common.message.DeleteRequestImpl;
-import org.apache.ldap.common.message.ExtendedRequest;
-import org.apache.ldap.common.message.ExtendedRequestImpl;
-import org.apache.ldap.common.message.MessageDecoder;
-import org.apache.ldap.common.message.MessageEncoder;
-import org.apache.ldap.common.message.ModifyDnRequest;
-import org.apache.ldap.common.message.ModifyDnRequestImpl;
-import org.apache.ldap.common.message.ModifyRequest;
-import org.apache.ldap.common.message.ModifyRequestImpl;
-import org.apache.ldap.common.message.ResultCodeEnum;
-import org.apache.ldap.common.message.SearchRequest;
-import org.apache.ldap.common.message.SearchRequestImpl;
-import org.apache.ldap.common.message.UnbindRequest;
-import org.apache.ldap.common.message.UnbindRequestImpl;
-import org.apache.ldap.common.message.spi.Provider;
-import org.apache.mina.common.IdleStatus;
-import org.apache.mina.protocol.ProtocolCodecFactory;
-import org.apache.mina.protocol.ProtocolDecoder;
-import org.apache.mina.protocol.ProtocolEncoder;
-import org.apache.mina.protocol.ProtocolHandler;
-import org.apache.mina.protocol.ProtocolProvider;
-import org.apache.mina.protocol.ProtocolSession;
-import org.apache.mina.protocol.handler.DemuxingProtocolHandler;
-import org.apache.mina.protocol.handler.MessageHandler;
 
+
+import org.apache.directory.server.ldap.ExtendedOperationHandler;
+
+import org.apache.directory.server.ldap.support.LdapMessageHandler;
+import org.apache.directory.shared.asn1.codec.Asn1CodecDecoder;
+import org.apache.directory.shared.asn1.codec.Asn1CodecEncoder;
+
+import org.apache.directory.shared.ldap.exception.LdapNamingException;
+import org.apache.directory.shared.ldap.message.AbandonRequest;
+import org.apache.directory.shared.ldap.message.AbandonRequestImpl;
+import org.apache.directory.shared.ldap.message.AddRequest;
+import org.apache.directory.shared.ldap.message.AddRequestImpl;
+import org.apache.directory.shared.ldap.message.BindRequest;
+import org.apache.directory.shared.ldap.message.BindRequestImpl;
+import org.apache.directory.shared.ldap.message.CompareRequest;
+import org.apache.directory.shared.ldap.message.CompareRequestImpl;
+import org.apache.directory.shared.ldap.message.Control;
+import org.apache.directory.shared.ldap.message.DeleteRequest;
+import org.apache.directory.shared.ldap.message.DeleteRequestImpl;
+import org.apache.directory.shared.ldap.message.ExtendedRequest;
+import org.apache.directory.shared.ldap.message.ExtendedRequestImpl;
+import org.apache.directory.shared.ldap.message.MessageDecoder;
+import org.apache.directory.shared.ldap.message.MessageEncoder;
+import org.apache.directory.shared.ldap.message.ModifyDnRequest;
+import org.apache.directory.shared.ldap.message.ModifyDnRequestImpl;
+import org.apache.directory.shared.ldap.message.ModifyRequest;
+import org.apache.directory.shared.ldap.message.ModifyRequestImpl;
+import org.apache.directory.shared.ldap.message.Request;
+import org.apache.directory.shared.ldap.message.ResponseCarryingMessageException;
+import org.apache.directory.shared.ldap.message.ResultCodeEnum;
+import org.apache.directory.shared.ldap.message.ResultResponse;
+import org.apache.directory.shared.ldap.message.ResultResponseRequest;
+import org.apache.directory.shared.ldap.message.SearchRequest;
+import org.apache.directory.shared.ldap.message.SearchRequestImpl;
+import org.apache.directory.shared.ldap.message.UnbindRequest;
+import org.apache.directory.shared.ldap.message.UnbindRequestImpl;
+import org.apache.directory.shared.ldap.message.extended.NoticeOfDisconnect;
+import org.apache.log4j.Logger;
+import org.apache.mina.common.IdleStatus;
+import org.apache.mina.common.IoFilterChain;
+import org.apache.mina.common.IoHandler;
+import org.apache.mina.common.IoSession;
+import org.apache.mina.filter.SSLFilter;
+import org.apache.mina.filter.codec.ProtocolCodecFactory;
+import org.apache.mina.filter.codec.ProtocolCodecFilter;
+import org.apache.mina.filter.codec.ProtocolDecoder;
+import org.apache.mina.filter.codec.ProtocolEncoder;
+import org.apache.mina.handler.demux.DemuxingIoHandler;
+import org.apache.mina.handler.demux.MessageHandler;
+import org.apache.mina.util.SessionLog;
 
 /**
  * An LDAP protocol provider implementation which dynamically associates
  * handlers.
  *
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
- * @version $Rev: 201512 $
+ * @version $Rev: 442821 $
  */
-public class LdapProtocolProvider implements ProtocolProvider
+public class LdapProtocolProvider
+
 {
+	
+	static Logger logger = Logger.getLogger(LdapProtocolProvider.class);
     /** the constant service name of this ldap protocol provider **/
     public static final String SERVICE_NAME = "ldap";
-
     /** a map of the default request object class name to the handler class name */
-    public static final Map DEFAULT_HANDLERS;
+    private static final Map DEFAULT_HANDLERS;
+    /** a set of supported controls */
+    private static final Set SUPPORTED_CONTROLS;
+    
 
     static
     {
@@ -131,6 +152,12 @@ public class LdapProtocolProvider implements ProtocolProvider
         map.put( UnbindRequestImpl.class.getName(), UnBindHandler.class );
 
         DEFAULT_HANDLERS = Collections.unmodifiableMap( map );
+
+        HashSet set = new HashSet();
+        /*set.add( PersistentSearchControl.CONTROL_OID );
+        set.add( EntryChangeControl.CONTROL_OID );
+        set.add( ManageDsaITControl.CONTROL_OID );*/
+        SUPPORTED_CONTROLS = Collections.unmodifiableSet( set );
     }
 
     /** the underlying provider codec factory */
@@ -139,12 +166,13 @@ public class LdapProtocolProvider implements ProtocolProvider
     /** the MINA protocol handler */
     private final LdapProtocolHandler handler = new LdapProtocolHandler();
 
+
     // ------------------------------------------------------------------------
     // C O N S T R U C T O R S
     // ------------------------------------------------------------------------
 
     /**
-     * Creates a SEDA LDAP protocol provider.
+     * Creates a MINA LDAP protocol provider.
      *
      * @param env environment properties used to configure the provider and
      * underlying codec providers if any
@@ -169,7 +197,7 @@ public class LdapProtocolProvider implements ProtocolProvider
                 Class typeClass = Class.forName( type );
                 handler = ( MessageHandler ) clazz.newInstance();
                 ((LdapInfo) handler).setEnv(globalChain,router);
-                this.handler.registerMessageType( typeClass, handler );
+                this.handler.addMessageHandler( typeClass, handler );
             }
             catch( Exception e )
             {
@@ -182,10 +210,66 @@ public class LdapProtocolProvider implements ProtocolProvider
             }
         }
 
-        this.codecFactory = new ProtocolCodecFactoryImpl(  );
+        this.codecFactory = new ProtocolCodecFactoryImpl( new Hashtable() );
     }
-
     
+    /*
+    public LdapProtocolProvider( StartupConfiguration cfg, Hashtable env) throws LdapNamingException
+    {
+        Hashtable copy = ( Hashtable ) env.clone();
+        copy.put( Context.PROVIDER_URL, "" );
+        SessionRegistry.releaseSingleton();
+        new SessionRegistry( copy );
+
+        Iterator requestTypes = DEFAULT_HANDLERS.keySet().iterator();
+        while ( requestTypes.hasNext() )
+        {
+            LdapMessageHandler handler = null;
+            String type = ( String ) requestTypes.next();
+            Class clazz = null;
+
+            if ( copy.containsKey( type ) )
+            {
+                try
+                {
+                    clazz = Class.forName( ( String ) copy.get( type ) );
+                }
+                catch ( ClassNotFoundException e )
+                {
+                    LdapNamingException lne;
+                    String msg = "failed to load class " + clazz;
+                    msg += " for processing " + type + " objects.";
+                    lne = new LdapNamingException( msg, ResultCodeEnum.OTHER );
+                    lne.setRootCause( e );
+                    throw lne;
+                }
+            }
+            else
+            {
+                clazz = ( Class ) DEFAULT_HANDLERS.get( type );
+            }
+
+            try
+            {
+                Class typeClass = Class.forName( type );
+                handler = ( LdapMessageHandler ) clazz.newInstance();
+                handler.init( cfg );
+                this.handler.addMessageHandler( typeClass, handler );
+            }
+            catch ( Exception e )
+            {
+                LdapNamingException lne;
+                String msg = "failed to create handler instance of " + clazz;
+                msg += " for processing " + type + " objects.";
+                lne = new LdapNamingException( msg, ResultCodeEnum.OTHER );
+                lne.setRootCause( e );
+                throw lne;
+            }
+        }
+
+        this.codecFactory = new ProtocolCodecFactoryImpl( copy );
+    }
+	*/
 
     // ------------------------------------------------------------------------
     // ProtocolProvider Methods
@@ -196,109 +280,142 @@ public class LdapProtocolProvider implements ProtocolProvider
         return SERVICE_NAME;
     }
 
+
     public ProtocolCodecFactory getCodecFactory()
     {
         return codecFactory;
     }
 
-    public ProtocolHandler getHandler()
+
+    public IoHandler getHandler()
     {
         return handler;
     }
 
+
+    
+
+
+    
     /**
      * A snickers based BER Decoder factory.
      */
-    private static final class ProtocolCodecFactoryImpl implements
-            ProtocolCodecFactory
+    private static final class ProtocolCodecFactoryImpl implements ProtocolCodecFactory
     {
         final Hashtable env;
 
+
         public ProtocolCodecFactoryImpl()
         {
-            this.env = null;
+        	logger.debug("Not Given Env");
+        	this.env = null;
         }
 
-        ProtocolCodecFactoryImpl( Hashtable env )
+
+        ProtocolCodecFactoryImpl(Hashtable env)
         {
-            this.env = env;
+            logger.debug("Given Env : " + env);
+        	this.env = env;
         }
 
-        public ProtocolEncoder newEncoder()
+
+        public ProtocolEncoder getEncoder()
         {
-            if( env == null || env.get( Provider.BERLIB_PROVIDER ) == null )
-            {
-                return new Asn1CodecEncoder( new MessageEncoder() );
-            }
-            else
-            {
-                return new Asn1CodecEncoder( new MessageEncoder( env ) );
-            }
+            return new Asn1CodecEncoder( new MessageEncoder( env ) );
         }
 
-        public ProtocolDecoder newDecoder()
+
+        public ProtocolDecoder getDecoder()
         {
-            if( env == null || env.get( Provider.BERLIB_PROVIDER ) == null )
-            {
-                return new Asn1CodecDecoder( new MessageDecoder() );
-            }
-            else
-            {
-                return new Asn1CodecDecoder( new MessageDecoder( env ) );
-            }
+            logger.debug("Env : " + env	);
+        	return new Asn1CodecDecoder( new MessageDecoder( env ) );
         }
     }
 
-    private class LdapProtocolHandler extends DemuxingProtocolHandler
+    private class LdapProtocolHandler extends DemuxingIoHandler
     {
-        private LdapProtocolHandler()
+        public void sessionCreated( IoSession session ) throws Exception
         {
-        }
-
-        public void deregisterMessageType( Class arg0 )
-        {
-            super.deregisterMessageType( arg0 );
-        }
-
-        public void registerMessageType( Class arg0, MessageHandler arg1 )
-        {
-            super.registerMessageType( arg0, arg1 );
-        }
-
-        public void sessionClosed( ProtocolSession session )
-        {
+            IoFilterChain filters = session.getFilterChain();
+            filters.addLast( "codec", new ProtocolCodecFilter( codecFactory ) );
             
+            // TODO : The filter is logging too much information.
+            // Right now, I have commented it, but it may be 
+            // used with some parameter to disable it
+            //filters.addLast( "logger", new LoggingFilter() );
         }
 
-        public void exceptionCaught( ProtocolSession session, Throwable cause )
+
+        public void sessionClosed( IoSession session )
         {
-            cause.printStackTrace();
+            SessionRegistry.getSingleton().remove( session );
         }
 
-        public void messageSent( ProtocolSession arg0, Object arg1 )
+
+        public void messageReceived( IoSession session, Object message ) throws Exception
         {
+            // Translate SSLFilter messages into LDAP extended request
+            // defined in RFC #2830, 'Lightweight Directory Access Protocol (v3):
+            // Extension for Transport Layer Security'.
+            // 
+            // The RFC specifies the payload should be empty, but we use
+            // it to notify the TLS state changes.  This hack should be
+            // OK from the viewpoint of security because StartTLS
+            // handler should react to only SESSION_UNSECURED message
+            // and degrade authentication level to 'anonymous' as specified
+            // in the RFC, and this is no threat.
+
+            if ( message == SSLFilter.SESSION_SECURED )
+            {
+                ExtendedRequest req = new ExtendedRequestImpl( 0 );
+                req.setOid( "1.3.6.1.4.1.1466.20037" );
+                req.setPayload( "SECURED".getBytes( "ISO-8859-1" ) );
+                message = req;
+            }
+            else if ( message == SSLFilter.SESSION_UNSECURED )
+            {
+                ExtendedRequest req = new ExtendedRequestImpl( 0 );
+                req.setOid( "1.3.6.1.4.1.1466.20037" );
+                req.setPayload( "UNSECURED".getBytes( "ISO-8859-1" ) );
+                message = req;
+            }
+
+            if ( ( ( Request ) message ).getControls().size() > 0 && message instanceof ResultResponseRequest )
+            {
+                ResultResponseRequest req = ( ResultResponseRequest ) message;
+                Iterator controls = req.getControls().values().iterator();
+                while ( controls.hasNext() )
+                {
+                    Control control = ( Control ) controls.next();
+                    if ( control.isCritical() && !SUPPORTED_CONTROLS.contains( control.getID() ) )
+                    {
+                        ResultResponse resp = req.getResultResponse();
+                        resp.getLdapResult().setErrorMessage( "Unsupport critical control: " + control.getID() );
+                        resp.getLdapResult().setResultCode( ResultCodeEnum.UNAVAILABLECRITICALEXTENSION );
+                        session.write( resp );
+                        return;
+                    }
+                }
+            }
+
+            super.messageReceived( session, message );
         }
 
-        public void sessionIdle( ProtocolSession arg0, IdleStatus arg1 )
-        {
-        }
 
-        public void sessionOpened( ProtocolSession session )
+        public void exceptionCaught( IoSession session, Throwable cause )
         {
-        	HashMap userSession = new HashMap();
-        	userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
-        	session.setAttribute("VLDAP_SESSION",userSession);
-        	session.setAttribute("VLDAP_BINDDN",new DistinguishedName(""));
-        	session.setAttribute("VLDAP_BINDPASS",new Password());
+            if ( cause.getCause() instanceof ResponseCarryingMessageException )
+            {
+                ResponseCarryingMessageException rcme = ( ResponseCarryingMessageException ) cause.getCause();
+                session.write( rcme.getResponse() );
+                return;
+            }
+            
+            SessionLog.warn( session,
+                "Unexpected exception forcing session to close: sending disconnect notice to client.", cause );
+            session.write( NoticeOfDisconnect.PROTOCOLERROR );
+            SessionRegistry.getSingleton().remove( session );
+            session.close();
         }
-
-        public void sessionCreated( ProtocolSession arg0 )
-        {
-        }
-    }
-    
-    public static void main(String[] args) throws Exception {
-        ;
     }
 }
-

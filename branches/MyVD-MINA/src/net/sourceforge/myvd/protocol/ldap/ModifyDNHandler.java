@@ -21,6 +21,7 @@ package net.sourceforge.myvd.protocol.ldap;
 
 import java.util.HashMap;
 
+import javax.naming.InvalidNameException;
 import javax.naming.NamingException;
 import javax.naming.ldap.LdapContext;
 
@@ -31,17 +32,17 @@ import net.sourceforge.myvd.types.Bool;
 import net.sourceforge.myvd.types.DistinguishedName;
 import net.sourceforge.myvd.types.Password;
 
-import org.apache.ldap.common.exception.LdapException;
-import org.apache.ldap.common.message.LdapResultImpl;
-import org.apache.ldap.common.message.ModifyDnRequest;
-import org.apache.ldap.common.message.ModifyDnResponse;
-import org.apache.ldap.common.message.ModifyDnResponseImpl;
-import org.apache.ldap.common.message.ResultCodeEnum;
-import org.apache.ldap.common.name.LdapName;
-import org.apache.ldap.common.util.ExceptionUtils;
-import org.apache.mina.protocol.ProtocolSession;
-import org.apache.mina.protocol.handler.MessageHandler;
 
+
+
+import org.apache.directory.server.core.configuration.StartupConfiguration;
+import org.apache.directory.server.ldap.support.LdapMessageHandler;
+import org.apache.directory.shared.ldap.message.LdapResult;
+import org.apache.directory.shared.ldap.message.ModifyDnRequest;
+import org.apache.directory.shared.ldap.message.ResultCodeEnum;
+import org.apache.directory.shared.ldap.name.LdapDN;
+import org.apache.directory.shared.ldap.util.ExceptionUtils;
+import org.apache.mina.common.IoSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,17 +56,16 @@ import com.novell.ldap.LDAPException;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 231083 $
  */
-public class ModifyDNHandler implements MessageHandler,LdapInfo
+public class ModifyDNHandler implements LdapMessageHandler,LdapInfo
 {
     private static final Logger LOG = LoggerFactory.getLogger( ModifyDNHandler.class );
 	private Insert[] globalChain;
 	private Router router;
 
-    public void messageReceived( ProtocolSession session, Object request )
+    public void messageReceived( IoSession session, Object request )
     {
         ModifyDnRequest req = ( ModifyDnRequest ) request;
-        ModifyDnResponse resp = new ModifyDnResponseImpl( req.getMessageId() );
-        resp.setLdapResult( new LdapResultImpl( resp ) );
+        LdapResult result = req.getResultResponse().getLdapResult();
         
         HashMap userSession;
         
@@ -83,20 +83,20 @@ public class ModifyDNHandler implements MessageHandler,LdapInfo
 
             if ( req.isMove() )
             {
-                DistinguishedName oldDn = new DistinguishedName( req.getName() );
+                DistinguishedName oldDn = new DistinguishedName( req.getName().toString() );
                 
-                DistinguishedName newSuperior = new DistinguishedName(req.getNewSuperior());
+                DistinguishedName newSuperior = new DistinguishedName(req.getNewSuperior().toString());
                 
-                DistinguishedName newRDN = new DistinguishedName( req.getNewRdn() );
+                DistinguishedName newRDN = new DistinguishedName( req.getNewRdn().toString() );
 
                 RenameInterceptorChain chain = new RenameInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),this.router);
                 chain.nextRename(oldDn,newRDN,newSuperior,new Bool(req.getDeleteOldRdn()),new LDAPConstraints());
             }
             else
             {
-            	DistinguishedName oldDn = new DistinguishedName( req.getName() );
+            	DistinguishedName oldDn = new DistinguishedName( req.getName().toString() );
             	System.out.println("oldDN : " + oldDn.getDN());
-            	DistinguishedName newRDN = new DistinguishedName( req.getNewRdn() );
+            	DistinguishedName newRDN = new DistinguishedName( req.getNewRdn().toString() );
             	
             	RenameInterceptorChain chain = new RenameInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),this.router);
                 chain.nextRename(oldDn,newRDN,new Bool(req.getDeleteOldRdn()),new LDAPConstraints());
@@ -116,15 +116,19 @@ public class ModifyDNHandler implements MessageHandler,LdapInfo
             code = ResultCodeEnum.getResultCodeEnum(e.getResultCode());
             
 
-            resp.getLdapResult().setResultCode( code );
-            resp.getLdapResult().setErrorMessage( msg );
+            result.setResultCode( code );
+            result.setErrorMessage( msg );
 
             if ( e.getMatchedDN() != null )
             {
-                resp.getLdapResult().setMatchedDn( e.getMatchedDN());
+                try {
+					result.setMatchedDn( new LdapDN(e.getMatchedDN()));
+				} catch (InvalidNameException e1) {
+					LOG.error("Error",e1);
+				}
             }
 
-            session.write( resp );
+            session.write( result );
             return;
         }catch (Throwable t) {
         	
@@ -141,23 +145,28 @@ public class ModifyDNHandler implements MessageHandler,LdapInfo
                 code = ResultCodeEnum.OPERATIONSERROR;
             
 
-            resp.getLdapResult().setResultCode( code );
-            resp.getLdapResult().setErrorMessage( msg );
+            result.setResultCode( code );
+            result.setErrorMessage( msg );
             
 
-            session.write( resp );
+            session.write( result );
             return;
         
     }
 
-        resp.getLdapResult().setResultCode( ResultCodeEnum.SUCCESS );
-        resp.getLdapResult().setMatchedDn( req.getName() );
-        session.write( resp );
+        result.setResultCode( ResultCodeEnum.SUCCESS );
+        result.setMatchedDn( req.getName() );
+        session.write( result );
     }
 
 	public void setEnv(Insert[] globalChain, Router router) {
 		this.globalChain = globalChain;
 		this.router = router;
+		
+	}
+
+	public void init(StartupConfiguration arg0) {
+		// TODO Auto-generated method stub
 		
 	}
 }

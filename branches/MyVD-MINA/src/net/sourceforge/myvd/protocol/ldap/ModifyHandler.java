@@ -22,6 +22,7 @@ package net.sourceforge.myvd.protocol.ldap;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import javax.naming.InvalidNameException;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
@@ -34,16 +35,18 @@ import net.sourceforge.myvd.router.Router;
 import net.sourceforge.myvd.types.DistinguishedName;
 import net.sourceforge.myvd.types.Password;
 
-import org.apache.ldap.common.exception.LdapException;
-import org.apache.ldap.common.message.LdapResultImpl;
-import org.apache.ldap.common.message.ModifyRequest;
-import org.apache.ldap.common.message.ModifyResponse;
-import org.apache.ldap.common.message.ModifyResponseImpl;
-import org.apache.ldap.common.message.ResultCodeEnum;
-import org.apache.ldap.common.util.ExceptionUtils;
-import org.apache.mina.protocol.ProtocolSession;
-import org.apache.mina.protocol.handler.MessageHandler;
 
+
+
+import org.apache.directory.server.core.configuration.StartupConfiguration;
+import org.apache.directory.server.ldap.support.LdapMessageHandler;
+import org.apache.directory.shared.ldap.exception.LdapException;
+import org.apache.directory.shared.ldap.message.LdapResult;
+import org.apache.directory.shared.ldap.message.ModifyRequest;
+import org.apache.directory.shared.ldap.message.ResultCodeEnum;
+import org.apache.directory.shared.ldap.name.LdapDN;
+import org.apache.directory.shared.ldap.util.ExceptionUtils;
+import org.apache.mina.common.IoSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +62,7 @@ import com.novell.ldap.LDAPModification;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 231083 $
  */
-public class ModifyHandler implements MessageHandler,LdapInfo
+public class ModifyHandler implements LdapMessageHandler,LdapInfo
 {
     private static final Logger LOG = LoggerFactory.getLogger( ModifyHandler.class );
     private static final ModificationItem[] EMPTY = new ModificationItem[0];
@@ -67,11 +70,10 @@ public class ModifyHandler implements MessageHandler,LdapInfo
 	private Router router;
 
 
-    public void messageReceived( ProtocolSession session, Object request )
+    public void messageReceived( IoSession session, Object request )
     {
         ModifyRequest req = ( ModifyRequest ) request;
-        ModifyResponse resp = new ModifyResponseImpl( req.getMessageId() );
-        resp.setLdapResult( new LdapResultImpl( resp ) );
+        LdapResult result = req.getResultResponse().getLdapResult();
 
         HashMap userSession;
         try
@@ -96,7 +98,7 @@ public class ModifyHandler implements MessageHandler,LdapInfo
             }
             
             ModifyInterceptorChain chain = new ModifyInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),this.router);
-            chain.nextModify(new DistinguishedName(req.getName()),mods,new LDAPConstraints());
+            chain.nextModify(new DistinguishedName(req.getName().toString()),mods,new LDAPConstraints());
             
             
         }
@@ -113,15 +115,19 @@ public class ModifyHandler implements MessageHandler,LdapInfo
             code = ResultCodeEnum.getResultCodeEnum(e.getResultCode());
             
 
-            resp.getLdapResult().setResultCode( code );
-            resp.getLdapResult().setErrorMessage( msg );
+            result.setResultCode( code );
+            result.setErrorMessage( msg );
 
             if ( e.getMatchedDN() != null )
             {
-                resp.getLdapResult().setMatchedDn( e.getMatchedDN() );
+                try {
+					result.setMatchedDn( new LdapDN(e.getMatchedDN()) );
+				} catch (InvalidNameException e1) {
+					LOG.error("Error",e1);
+				}
             }
 
-            session.write( resp );
+            session.write( result );
             return;
         }
         catch ( NamingException e )
@@ -143,15 +149,19 @@ public class ModifyHandler implements MessageHandler,LdapInfo
                 code = ResultCodeEnum.getBestEstimate( e, req.getType() );
             }
 
-            resp.getLdapResult().setResultCode( code );
-            resp.getLdapResult().setErrorMessage( msg );
+            result.setResultCode( code );
+            result.setErrorMessage( msg );
 
             if ( e.getResolvedName() != null )
             {
-                resp.getLdapResult().setMatchedDn( e.getResolvedName().toString() );
+                try {
+					result.setMatchedDn( new LdapDN(e.getResolvedName().toString()) );
+				} catch (InvalidNameException e1) {
+					LOG.error("Error",e1);
+				}
             }
 
-            session.write( resp );
+            session.write( result );
             return;
         }catch (Throwable t) {
         	
@@ -168,18 +178,18 @@ public class ModifyHandler implements MessageHandler,LdapInfo
                 code = ResultCodeEnum.OPERATIONSERROR;
             
 
-            resp.getLdapResult().setResultCode( code );
-            resp.getLdapResult().setErrorMessage( msg );
+            result.setResultCode( code );
+            result.setErrorMessage( msg );
             
 
-            session.write( resp );
+            session.write( result );
             return;
         
     }
 
-        resp.getLdapResult().setResultCode( ResultCodeEnum.SUCCESS );
-        resp.getLdapResult().setMatchedDn( req.getName() );
-        session.write( resp );
+        result.setResultCode( ResultCodeEnum.SUCCESS );
+        result.setMatchedDn( req.getName() );
+        session.write( result );
         return;
     }
     
@@ -207,6 +217,11 @@ public class ModifyHandler implements MessageHandler,LdapInfo
 	public void setEnv(Insert[] globalChain, Router router) {
 		this.globalChain = globalChain;
 		this.router = router;
+		
+	}
+
+	public void init(StartupConfiguration arg0) {
+		// TODO Auto-generated method stub
 		
 	}
 }

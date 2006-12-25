@@ -38,14 +38,18 @@ import net.sourceforge.myvd.protocol.ldap.LdapProtocolProvider;
 import net.sourceforge.myvd.router.Router;
 import net.sourceforge.myvd.types.DistinguishedName;
 
-import org.apache.ldap.common.exception.LdapNamingException;
+
+import org.apache.directory.shared.ldap.exception.LdapNamingException;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
+import org.apache.mina.common.DefaultIoFilterChainBuilder;
+import org.apache.mina.common.ExecutorThreadModel;
+import org.apache.mina.common.IoAcceptor;
 import org.apache.mina.common.TransportType;
-import org.apache.mina.io.filter.SSLFilter;
-import org.apache.mina.registry.Service;
-import org.apache.mina.registry.ServiceRegistry;
-import org.apache.mina.registry.SimpleServiceRegistry;
+import org.apache.mina.transport.socket.nio.SocketAcceptor;
+import org.apache.mina.transport.socket.nio.SocketAcceptorConfig;
+import org.apache.mina.transport.socket.nio.SocketSessionConfig;
+
 
 import com.novell.ldap.LDAPConnection;
 import com.novell.ldap.LDAPException;
@@ -56,12 +60,14 @@ public class Server {
 	
 	static Logger logger;
 	
+	protected static IoAcceptor tcpAcceptor;
+	protected static ExecutorThreadModel threadModel = ExecutorThreadModel.getInstance( "MyVD" );
+	
 	String configFile;
 	Properties props;
 	private Insert[] globalChain;
 	private Router router;
-	ServiceRegistry minaRegistry;
-	ServiceRegistry sslMinaRegistry;
+
 	
 	public Insert[] getGlobalChain() {
 		return globalChain;
@@ -88,6 +94,12 @@ public class Server {
 		
 		//this is a hack for testing.
 		if (logger == null) {
+			Properties props = new Properties();
+			props.put("log4j.rootLogger", "debug,console");
+			props.put("log4j.appender.console","org.apache.log4j.ConsoleAppender");
+			props.put("log4j.appender.console.layout","org.apache.log4j.PatternLayout");
+			props.put("log4j.appender.console.layout.ConversionPattern","[%d][%t] %-5p %c{1} - %m%n");
+			PropertyConfigurator.configure(props);
 			logger = Logger.getLogger(Server.class.getName());
 		}
 		
@@ -102,12 +114,34 @@ public class Server {
 		
 		if (! portString.equals("")) {
 			logger.debug("Starting server on port : " + portString);
-			minaRegistry = new SimpleServiceRegistry();
+			
+			LdapProtocolProvider protocolProvider = new LdapProtocolProvider(this.globalChain,this.router);
+			
+//			 Disable the disconnection of the clients on unbind
+            SocketAcceptorConfig acceptorCfg = new SocketAcceptorConfig();
+            acceptorCfg.setDisconnectOnUnbind( false );
+            acceptorCfg.setReuseAddress( true );
+            acceptorCfg.setFilterChainBuilder( new DefaultIoFilterChainBuilder() );
+            acceptorCfg.setThreadModel( threadModel );
+            
+            ((SocketSessionConfig)(acceptorCfg.getSessionConfig())).setTcpNoDelay( true );
+            
+            logger.debug("Port String : " + portString);
+            logger.debug("Protocol Prpvider : " + protocolProvider);
+            logger.debug("AcceptorConfig : " + acceptorCfg);
+            logger.debug("tcpAcceptor : " + tcpAcceptor);
+            
+            tcpAcceptor = new SocketAcceptor();
+            tcpAcceptor.bind( new InetSocketAddress( Integer.parseInt(portString) ), protocolProvider.getHandler(), acceptorCfg );
+            
+			
+			/*minaRegistry = new SimpleServiceRegistry();
 			Service service = new Service( "ldap", TransportType.SOCKET, new InetSocketAddress( Integer.parseInt(portString) ) );
-			minaRegistry.bind(service, new LdapProtocolProvider(this.globalChain,this.router));
+			*/
 			logger.debug("LDAP listener started");
 		}
 		
+		/*
 		portString = props.getProperty("server.secure.listener.port","");
 		if (! portString.equals("")) {
 			String keyStorePath = props.getProperty("server.secure.keystore","");
@@ -139,12 +173,14 @@ public class Server {
 			} 
 			
 		}
+		*/
 		
 		
 	}
 	
 	public void stopServer() {
-		this.minaRegistry.unbindAll();
+		//this.minaRegistry.unbindAll();
+		tcpAcceptor.unbindAll();
 		for (int i=0,m=100;i<m;i++) {
 			try {
 				LDAPConnection con = new LDAPConnection();

@@ -36,6 +36,7 @@ package net.sourceforge.myvd.protocol.ldap;
 
 import java.util.HashMap;
 
+import javax.naming.InvalidNameException;
 import javax.naming.NamingException;
 
 import net.sourceforge.myvd.chain.CompareInterceptorChain;
@@ -45,15 +46,15 @@ import net.sourceforge.myvd.types.Attribute;
 import net.sourceforge.myvd.types.DistinguishedName;
 import net.sourceforge.myvd.types.Password;
 
-import org.apache.ldap.common.exception.LdapException;
-import org.apache.ldap.common.message.CompareRequest;
-import org.apache.ldap.common.message.CompareResponse;
-import org.apache.ldap.common.message.CompareResponseImpl;
-import org.apache.ldap.common.message.LdapResultImpl;
-import org.apache.ldap.common.message.ResultCodeEnum;
-import org.apache.ldap.common.util.ExceptionUtils;
-import org.apache.mina.protocol.ProtocolSession;
-import org.apache.mina.protocol.handler.MessageHandler;
+
+import org.apache.directory.server.core.configuration.StartupConfiguration;
+import org.apache.directory.server.ldap.support.LdapMessageHandler;
+import org.apache.directory.shared.ldap.message.CompareRequest;
+import org.apache.directory.shared.ldap.message.LdapResult;
+import org.apache.directory.shared.ldap.message.ResultCodeEnum;
+import org.apache.directory.shared.ldap.name.LdapDN;
+import org.apache.directory.shared.ldap.util.ExceptionUtils;
+import org.apache.mina.common.IoSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,17 +69,16 @@ import com.novell.ldap.LDAPException;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 231083 $
  */
-public class CompareHandler implements MessageHandler,LdapInfo
+public class CompareHandler implements LdapMessageHandler,LdapInfo
 {
     private static final Logger LOG = LoggerFactory.getLogger( CompareHandler.class );
 	private Insert[] globalChain;
 	private Router router;
 
-    public void messageReceived( ProtocolSession session, Object request )
+    public void messageReceived( IoSession session, Object request )
     {
         CompareRequest req = ( CompareRequest ) request;
-        CompareResponse resp = new CompareResponseImpl( req.getMessageId() );
-        resp.setLdapResult( new LdapResultImpl( resp ) );
+        LdapResult result = req.getResultResponse().getLdapResult();
 
         HashMap userSession = null;
         
@@ -100,9 +100,9 @@ public class CompareHandler implements MessageHandler,LdapInfo
             
             CompareInterceptorChain chain = new CompareInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),router);
             
-            chain.nextCompare(new DistinguishedName(req.getName()),attrib,new LDAPConstraints());
+            chain.nextCompare(new DistinguishedName(req.getName().toString()),attrib,new LDAPConstraints());
 
-            resp.getLdapResult().setResultCode( ResultCodeEnum.COMPARETRUE );
+            result.setResultCode( ResultCodeEnum.COMPARETRUE );
             
             
         }
@@ -119,15 +119,19 @@ public class CompareHandler implements MessageHandler,LdapInfo
             code = ResultCodeEnum.getResultCodeEnum(e .getResultCode() );
             
 
-            resp.getLdapResult().setResultCode( code );
-            resp.getLdapResult().setErrorMessage( msg );
+            result.setResultCode( code );
+            result.setErrorMessage( msg );
 
             if ( e.getMatchedDN() != null )
             {
-                resp.getLdapResult().setMatchedDn( e.getMatchedDN() );
+                try {
+					result.setMatchedDn( new LdapDN(e.getMatchedDN()) );
+				} catch (InvalidNameException e1) {
+					LOG.error("Error",e1);
+				}
             }
 
-            session.write( resp );
+            session.write( result );
             return;
         }catch (Throwable t) {
         	
@@ -144,17 +148,17 @@ public class CompareHandler implements MessageHandler,LdapInfo
                 code = ResultCodeEnum.OPERATIONSERROR;
             
 
-            resp.getLdapResult().setResultCode( code );
-            resp.getLdapResult().setErrorMessage( msg );
+            result.setResultCode( code );
+            result.setErrorMessage( msg );
             
 
-            session.write( resp );
+            session.write( result );
             return;
         
     }
 
-        resp.getLdapResult().setMatchedDn( req.getName() );
-        session.write( resp );
+        result.setMatchedDn( req.getName() );
+        session.write( result );
     }
 
 	public void setEnv(Insert[] globalChain, Router router) {
@@ -162,5 +166,12 @@ public class CompareHandler implements MessageHandler,LdapInfo
 		this.router = router;
 		
 	}
+
+	public void init(StartupConfiguration arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	
 }
 
