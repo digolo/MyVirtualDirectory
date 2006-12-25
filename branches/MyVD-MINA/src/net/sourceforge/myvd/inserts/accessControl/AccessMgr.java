@@ -23,7 +23,7 @@ import java.util.Vector;
 import net.sourceforge.myvd.chain.InterceptorChain;
 import net.sourceforge.myvd.types.DNComparer;
 
-import org.apache.ldap.common.schema.DnComparator;
+
 
 import com.novell.ldap.util.DN;
 import com.novell.ldap.util.RDN;

@@ -53,9 +53,7 @@ import net.sourceforge.myvd.types.Results;
 import net.sourceforge.myvd.types.SessionVariables;
 
 import org.apache.mina.common.TransportType;
-import org.apache.mina.registry.Service;
-import org.apache.mina.registry.ServiceRegistry;
-import org.apache.mina.registry.SimpleServiceRegistry;
+
 
 import com.novell.ldap.LDAPAttribute;
 import com.novell.ldap.LDAPAttributeSet;
@@ -93,15 +91,15 @@ public class TestStartServer extends TestCase {
 	protected void setUp() throws Exception {
 		super.setUp();
 		this.baseServer = new StartOpenLDAP();
-		this.baseServer.startServer(System.getenv("PROJ_DIR") + "/MyVD/test/Base",10983,"cn=admin,dc=domain,dc=com","manager");
+		this.baseServer.startServer(System.getenv("PROJ_DIR") + "/test/Base",10983,"cn=admin,dc=domain,dc=com","manager");
 		
 		this.internalServer = new StartOpenLDAP();
-		this.internalServer.startServer(System.getenv("PROJ_DIR") + "/MyVD/test/InternalUsers",11983,"cn=admin,ou=internal,dc=domain,dc=com","manager");
+		this.internalServer.startServer(System.getenv("PROJ_DIR") + "/test/InternalUsers",11983,"cn=admin,ou=internal,dc=domain,dc=com","manager");
 		
 		this.externalServer = new StartOpenLDAP();
-		this.externalServer.startServer(System.getenv("PROJ_DIR") + "/MyVD/test/ExternalUsers",12983,"cn=admin,ou=external,dc=domain,dc=com","manager");
+		this.externalServer.startServer(System.getenv("PROJ_DIR") + "/test/ExternalUsers",12983,"cn=admin,ou=external,dc=domain,dc=com","manager");
 		
-		server = new Server(System.getenv("PROJ_DIR") + "/MyVD/test/TestServer/testconfig.props");
+		server = new Server(System.getenv("PROJ_DIR") + "/test/TestServer/testconfig.props");
 		server.startServer();
 		
 		this.globalChain = server.getGlobalChain();
