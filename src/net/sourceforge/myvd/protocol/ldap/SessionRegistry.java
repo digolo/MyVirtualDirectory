@@ -37,9 +37,9 @@ import javax.naming.spi.InitialContextFactory;
 /*import org.apache.directory.server.core.configuration.Configuration;
 import org.apache.directory.server.core.configuration.StartupConfiguration;
 import org.apache.directory.server.core.jndi.ServerLdapContext;*/
-import org.apache.directory.shared.ldap.exception.LdapNoPermissionException;
-import org.apache.directory.shared.ldap.message.AbandonableRequest;
-import org.apache.directory.shared.ldap.message.Request;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.exception.LdapNoPermissionException;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.AbandonableRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.Request;
 import org.apache.mina.common.IoSession;
 
 

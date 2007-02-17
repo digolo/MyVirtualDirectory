@@ -35,13 +35,13 @@ import net.sourceforge.myvd.types.Password;
 
 
 
-import org.apache.directory.server.core.configuration.StartupConfiguration;
-import org.apache.directory.server.ldap.support.LdapMessageHandler;
-import org.apache.directory.shared.ldap.message.LdapResult;
-import org.apache.directory.shared.ldap.message.ModifyDnRequest;
-import org.apache.directory.shared.ldap.message.ResultCodeEnum;
-import org.apache.directory.shared.ldap.name.LdapDN;
-import org.apache.directory.shared.ldap.util.ExceptionUtils;
+
+
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.LdapResult;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ModifyDnRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ResultCodeEnum;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.name.LdapDN;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.util.ExceptionUtils;
 import org.apache.mina.common.IoSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,25 +56,21 @@ import com.novell.ldap.LDAPException;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 231083 $
  */
-public class ModifyDNHandler implements LdapMessageHandler,LdapInfo
+public class ModifyDNHandler extends LDAPOperation
 {
     private static final Logger LOG = LoggerFactory.getLogger( ModifyDNHandler.class );
-	private Insert[] globalChain;
-	private Router router;
-
-    public void messageReceived( IoSession session, Object request )
+	
+    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
         ModifyDnRequest req = ( ModifyDnRequest ) request;
         LdapResult result = req.getResultResponse().getLdapResult();
         
-        HashMap userSession;
+        
         
         try
         {
             
-        	userSession = (HashMap) session.getAttribute("VLDAP_SESSION");
-            DistinguishedName bindDN = (DistinguishedName) session.getAttribute("VLDAP_BINDDN");
-            Password pass = (Password) session.getAttribute("VLDAP_BINDPASS");
+        	userSession = (HashMap) session.getAttribute("MYVD_SESSION");
             
             if (bindDN == null) {
             	bindDN = new DistinguishedName("");
@@ -113,7 +109,7 @@ public class ModifyDNHandler implements LdapMessageHandler,LdapInfo
 
             ResultCodeEnum code;
             
-            code = ResultCodeEnum.getResultCodeEnum(e.getResultCode());
+            code = ResultCodeEnum.getResultCode(e.getResultCode());
             
 
             result.setResultCode( code );
@@ -128,7 +124,7 @@ public class ModifyDNHandler implements LdapMessageHandler,LdapInfo
 				}
             }
 
-            session.write( result );
+            session.write( req.getResultResponse() );
             return;
         }catch (Throwable t) {
         	
@@ -142,32 +138,23 @@ public class ModifyDNHandler implements LdapMessageHandler,LdapInfo
             ResultCodeEnum code;
 
             
-                code = ResultCodeEnum.OPERATIONSERROR;
+                code = ResultCodeEnum.OPERATIONS_ERROR;
             
 
             result.setResultCode( code );
             result.setErrorMessage( msg );
             
 
-            session.write( result );
+            session.write( req.getResultResponse() );
             return;
         
     }
 
         result.setResultCode( ResultCodeEnum.SUCCESS );
         result.setMatchedDn( req.getName() );
-        session.write( result );
+        session.write( req.getResultResponse() );
     }
 
-	public void setEnv(Insert[] globalChain, Router router) {
-		this.globalChain = globalChain;
-		this.router = router;
-		
-	}
-
-	public void init(StartupConfiguration arg0) {
-		// TODO Auto-generated method stub
-		
-	}
+	
 }
 

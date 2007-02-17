@@ -32,18 +32,18 @@ import net.sourceforge.myvd.types.Password;
 
 
 
-import org.apache.directory.server.core.configuration.StartupConfiguration;
-import org.apache.directory.server.ldap.support.LdapMessageHandler;
-import org.apache.directory.shared.ldap.message.DeleteRequest;
-import org.apache.directory.shared.ldap.message.LdapResult;
-import org.apache.directory.shared.ldap.message.ResultCodeEnum;
-import org.apache.directory.shared.ldap.name.LdapDN;
-import org.apache.directory.shared.ldap.util.ExceptionUtils;
+
+
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.DeleteRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.LdapResult;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ResultCodeEnum;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.name.LdapDN;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.util.ExceptionUtils;
 import org.apache.mina.common.IoSession;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
-import sun.security.krb5.internal.s;
+
 
 import com.novell.ldap.LDAPConstraints;
 import com.novell.ldap.LDAPException;
@@ -55,32 +55,24 @@ import com.novell.ldap.LDAPException;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 231083 $
  */
-public class DeleteHandler implements LdapMessageHandler,LdapInfo
+public class DeleteHandler extends LDAPOperation
 {
     private static final Logger LOG = LoggerFactory.getLogger( DeleteHandler.class );
-	private Insert[] globalChain;
-	private Router router;
+	
 
-
-    public void messageReceived( IoSession session, Object request )
+    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
         DeleteRequest req = ( DeleteRequest ) request;
         LdapResult result = req.getResultResponse().getLdapResult();
 
-        HashMap userSession = null;
+        
         
         
         
         try
         {
-        	userSession = (HashMap) session.getAttribute("VLDAP_SESSION");
-            DistinguishedName bindDN = (DistinguishedName) session.getAttribute("VLDAP_BINDDN");
-            Password pass = (Password) session.getAttribute("VLDAP_BINDPASS");
+        	userSession = (HashMap) session.getAttribute("MYVD_SESSION");
             
-            if (bindDN == null) {
-            	bindDN = new DistinguishedName("");
-            	pass = new Password();
-            }
             
             DeleteInterceptorChain chain = new DeleteInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),router);
             chain.nextDelete(new DistinguishedName(req.getName().toString()),new LDAPConstraints());
@@ -98,7 +90,7 @@ public class DeleteHandler implements LdapMessageHandler,LdapInfo
             ResultCodeEnum code;
 
            
-           code = ResultCodeEnum.getResultCodeEnum(e.getResultCode());
+           code = ResultCodeEnum.getResultCode(e.getResultCode());
            
             result.setResultCode( code );
             result.setErrorMessage( msg );
@@ -112,7 +104,7 @@ public class DeleteHandler implements LdapMessageHandler,LdapInfo
 				}
             }
 
-            session.write( result );
+            session.write( req.getResultResponse() );
             return;
         }catch (Throwable t) {
         	
@@ -126,33 +118,23 @@ public class DeleteHandler implements LdapMessageHandler,LdapInfo
             ResultCodeEnum code;
 
             
-                code = ResultCodeEnum.OPERATIONSERROR;
+                code = ResultCodeEnum.OPERATIONS_ERROR;
             
 
             result.setResultCode( code );
             result.setErrorMessage( msg );
             
 
-            session.write( result );
+            session.write( req.getResultResponse() );
             return;
         
     }
 
         result.setResultCode( ResultCodeEnum.SUCCESS );
         result.setMatchedDn( req.getName() );
-        session.write( result );
+        session.write( req.getResultResponse() );
     }
 
 
-	public void setEnv(Insert[] globalChain, Router router) {
-		this.globalChain = globalChain;
-		this.router = router;
-		
-	}
-
-
-	public void init(StartupConfiguration arg0) {
-		// TODO Auto-generated method stub
-		
-	}
+	
 }

@@ -27,19 +27,14 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import javax.naming.InvalidNameException;
-import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
-import javax.naming.directory.Attribute;
-import javax.naming.directory.Attributes;
-import javax.naming.directory.BasicAttribute;
-import javax.naming.directory.BasicAttributes;
 import javax.naming.directory.SearchControls;
-import javax.naming.directory.SearchResult;
-import javax.naming.ldap.LdapContext;
+
 
 import net.sourceforge.myvd.chain.SearchInterceptorChain;
 import net.sourceforge.myvd.inserts.Insert;
 import net.sourceforge.myvd.router.Router;
+import net.sourceforge.myvd.types.Attribute;
 import net.sourceforge.myvd.types.Bool;
 import net.sourceforge.myvd.types.DistinguishedName;
 import net.sourceforge.myvd.types.Entry;
@@ -54,23 +49,23 @@ import net.sourceforge.myvd.types.SessionVariables;
 
 
 
-import org.apache.directory.server.core.configuration.StartupConfiguration;
-import org.apache.directory.server.ldap.support.LdapMessageHandler;
-import org.apache.directory.shared.ldap.exception.LdapException;
-import org.apache.directory.shared.ldap.message.LdapResult;
-import org.apache.directory.shared.ldap.message.LdapResultImpl;
-import org.apache.directory.shared.ldap.message.ReferralImpl;
-import org.apache.directory.shared.ldap.message.ResultCodeEnum;
-import org.apache.directory.shared.ldap.message.SearchRequest;
-import org.apache.directory.shared.ldap.message.SearchResponseDone;
-import org.apache.directory.shared.ldap.message.SearchResponseDoneImpl;
-import org.apache.directory.shared.ldap.message.SearchResponseEntry;
-import org.apache.directory.shared.ldap.message.SearchResponseEntryImpl;
-import org.apache.directory.shared.ldap.message.SearchResponseReference;
-import org.apache.directory.shared.ldap.message.SearchResponseReferenceImpl;
-import org.apache.directory.shared.ldap.name.LdapDN;
-import org.apache.directory.shared.ldap.util.ArrayUtils;
-import org.apache.directory.shared.ldap.util.ExceptionUtils;
+
+
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.exception.LdapException;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.LdapResult;
+
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ReferralImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ResultCodeEnum;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.SearchRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.SearchResponseDone;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.SearchResponseDoneImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.SearchResponseEntry;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.SearchResponseEntryImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.SearchResponseReference;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.SearchResponseReferenceImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.name.LdapDN;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.util.ArrayUtils;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.util.ExceptionUtils;
 import org.apache.mina.common.IoSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,38 +83,35 @@ import com.novell.ldap.LDAPSearchRequest;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 231083 $
  */
-public class SearchHandler implements LdapMessageHandler,LdapInfo
+public class SearchHandler extends LDAPOperation 
 {
     private static final Logger LOG = LoggerFactory.getLogger( SearchHandler.class );
     private static final String DEREFALIASES_KEY = "java.naming.ldap.derefAliases";
 
-    Insert[] globalChain;
-    Router router;
+   
 
     
     
-    
-    
-    public void messageReceived( IoSession session, Object request )
+    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
-        LdapContext ctx;
+        
         SearchRequest req = ( SearchRequest ) request;
-        NamingEnumeration list = null;
+        
 
         // check the attributes to see if a referral's ref attribute is included
-        String[] ids = null;
+        Attribute[] ids = null;
         Collection retAttrs = new HashSet();
-        retAttrs.addAll( req.getAttributes() );
+        /*retAttrs.addAll( req.getAttributes() );
 
         if( retAttrs.size() > 0 && !retAttrs.contains( "ref" ) )
         {
             retAttrs.add( "ref" );
-            ids = ( String[] ) retAttrs.toArray( ArrayUtils.EMPTY_STRING_ARRAY );
+            ids = ( Attribute[] ) retAttrs.toArray( ArrayUtils.EMPTY_STRING_ARRAY );
         }
         else if( retAttrs.size() > 0 )
         {
-            ids = ( String[] ) retAttrs.toArray( ArrayUtils.EMPTY_STRING_ARRAY );
-        }
+            ids = ( Attribute[] ) retAttrs.toArray( ArrayUtils.EMPTY_STRING_ARRAY );
+        }*/
 
         // prepare all the search controls
         SearchControls controls = new SearchControls();
@@ -134,48 +126,27 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
         {
             
 
-        	HashMap userSession = null;
         	
-        	userSession = (HashMap) session.getAttribute("VLDAP_SESSION");
-        	if (userSession == null) {
-        		userSession = new HashMap();
-        		session.setAttribute("VLDAP_SESSION", userSession);
-        	}
-            DistinguishedName bindDN = (DistinguishedName) session.getAttribute("VLDAP_BINDDN");
-            Password pass = (Password) session.getAttribute("VLDAP_BINDPASS");
-            
-            if (bindDN == null) {
-            	bindDN = new DistinguishedName("");
-            	pass = new Password();
-            	
-            	
-            	
-            	userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
-            	session.setAttribute("VLDAP_BINDDN",new DistinguishedName(""));
-                session.setAttribute("VLDAP_BINDPASS",new Password());
-            }
             
             Results res = new Results(this.globalChain);
             StringBuffer buff = new StringBuffer();
             
-            req.getFilter().printToBuffer(buff);
+            //req.getFilter().printToBuffer(buff);
             
-            String stringFilter = buff.toString();
+            //String stringFilter = buff.toString();
 			//System.out.println("Filter b: \"" + stringFilter + "\"");
-			stringFilter = stringFilter.replaceAll("[|] ","|");
-			stringFilter = stringFilter.replaceAll("[)] ",")");
-			stringFilter = stringFilter.replaceAll("[&] ","&");
-			stringFilter = stringFilter.replaceAll("[!] ","!");
+			//stringFilter = stringFilter.replaceAll("[|] ","|");
+			//stringFilter = stringFilter.replaceAll("[)] ",")");
+			//stringFilter = stringFilter.replaceAll("[&] ","&");
+			//stringFilter = stringFilter.replaceAll("[!] ","!");
 			//System.out.println("Filter a: \"" + stringFilter + "\"");
             
-			Filter filter = new Filter(stringFilter.trim()); 
+			Filter filter = req.getFilter();//   new Filter(stringFilter.trim()); 
             
-            Iterator it = req.getAttributes().iterator();
-            ArrayList<net.sourceforge.myvd.types.Attribute> reqAttribs = new ArrayList<net.sourceforge.myvd.types.Attribute>();
-            
-            while (it.hasNext()) {
-            	reqAttribs.add(new net.sourceforge.myvd.types.Attribute(it.next().toString()));
-            }
+			System.out.println("Filter : " + filter.getValue());
+			
+            Iterator it;
+            ArrayList<net.sourceforge.myvd.types.Attribute> reqAttribs = req.getAttributes();
             
             DistinguishedName base = new DistinguishedName(req.getBase() == null ? "" : req.getBase().toString()); 
             
@@ -207,11 +178,9 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
                 result.setResultCode( ResultCodeEnum.SUCCESS );
                 result.setErrorMessage( "" );
             	
-                while( it.hasNext() )
-                {
-                    session.write( it.next() );
-                }
+                
 
+                session.write(req.getResultResponse());
                 return;
             }
         }
@@ -228,10 +197,10 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
             ResultCodeEnum rc = null;
 
             
-            rc = ResultCodeEnum.getResultCodeEnum(e.getResultCode());
+            rc = ResultCodeEnum.getResultCode(e.getResultCode());
             
             if (rc == null) {
-            	rc = ResultCodeEnum.OPERATIONSERROR;
+            	rc = ResultCodeEnum.OPERATIONS_ERROR;
             }
             
             
@@ -257,12 +226,8 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
 				}
             }
 
-            Iterator it = Collections.singleton( resp ).iterator();
-
-            while( it.hasNext() )
-            {
-                session.write( it.next() );
-            }
+            session.write(req.getResultResponse());
+            
         } catch (Throwable t) {
         	t.printStackTrace();
             String msg = "failed to search "  + t.toString();
@@ -275,7 +240,7 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
             ResultCodeEnum code;
 
             
-                code = ResultCodeEnum.OPERATIONSERROR;
+                code = ResultCodeEnum.OPERATIONS_ERROR;
             
 
             resp.getLdapResult().setResultCode( code );
@@ -353,7 +318,7 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
         ResultCodeEnum rc = null;
 
         
-        rc = ResultCodeEnum.getResultCodeEnum(e.getResultCode());
+        rc = ResultCodeEnum.getResultCode(e.getResultCode());
         
 
         LdapResult result = req.getResultResponse().getLdapResult();
@@ -412,7 +377,8 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
                 if( underlying.hasMore() )
                 {
                     
-                	SearchResult result = marshall(underlying);
+                	//SearchResult result = marshall(underlying);
+                	Entry oentry = underlying.next();
 
                 	
                 	
@@ -420,7 +386,7 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
                      * Now we have to build the prefetched object from the 'result'
                      * local variable for the following call to next()
                      */
-                    Attribute ref = result.getAttributes().get( "ref" );
+                    LDAPAttribute ref = oentry.getEntry().getAttribute("ref");
 
                     if( ref == null || ref.size() > 0 )
                     {
@@ -428,10 +394,10 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
 
                         respEntry = new SearchResponseEntryImpl( req.getMessageId() );
 
-                        respEntry.setAttributes( result.getAttributes() );
+                        respEntry.setLDAPAttributeSet( oentry.getEntry().getAttributeSet() );
 
                         try {
-							respEntry.setObjectName( new LdapDN(result.getName()) );
+							respEntry.setObjectName( new LdapDN(oentry.getEntry().getDN()) );
 						} catch (InvalidNameException e) {
 							LOG.error("Error",e);
 						}
@@ -446,30 +412,17 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
 
                         respRef.setReferral( new ReferralImpl(  ) );
 
-                        for( int ii = 0; ii < ref.size(); ii ++ )
+                        String[] vals = ref.getStringValueArray();
+                        
+                        for( int ii = 0; ii < vals.length; ii ++ )
                         {
                             String url;
 
-                            try
-                            {
-                                url = ( String ) ref.get( ii );
+                            
+                                url = vals[ ii ];
 
                                 respRef.getReferral().addLdapUrl( url );
-                            }
-                            catch( NamingException e )
-                            {
-                                try
-                                {
-                                    underlying.finish();
-                                }
-                                catch( Throwable t )
-                                {
-                                }
-
-                                prefetched = null;
-
-                                respDone = getResponse( req, e );
-                            }
+                            
                         }
 
                         prefetched = respRef;
@@ -490,33 +443,7 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
             }
         }
 
-		private SearchResult marshall(Results underlying) throws LDAPException {
-			Entry oentry = underlying.next();
-			
-			if (oentry != null) {
-				LDAPEntry entry = oentry.getEntry();
-				
-				LDAPAttributeSet set = entry.getAttributeSet();
-				Iterator it = set.iterator();
-				Attributes attribs = new BasicAttributes();
-				while (it.hasNext()) {
-					LDAPAttribute ldapAttrib = (LDAPAttribute) it.next();
-					BasicAttribute attrib = new BasicAttribute(ldapAttrib.getBaseName());
-					String[] vals = ldapAttrib.getStringValueArray();
-					for (int i=0,m=vals.length;i<m;i++) {
-						attrib.add(vals[i]);
-					}
-					attribs.put(attrib);
-					
-				}
-				SearchResult sRes = new SearchResult(entry.getDN(),entry,attribs);
-				
-				SearchResult result = sRes;
-				return result;
-			} else {
-				return null;
-			}
-		}
+		
 
         public boolean hasNext()
         {
@@ -527,8 +454,9 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
         {
             Object next = prefetched;
 
-            SearchResult result = null;
 
+            Entry oentry = null;
+            
             // if we're done we got nothing to give back
             if( done )
             {
@@ -555,8 +483,8 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
                  */
                 if( underlying.hasMore() )
                 {
-                    result = marshall(underlying);
-                    if (result == null) {
+                    oentry = underlying.next();
+                    if (oentry == null) {
                     	
 
                     	respDone = ( SearchResponseDone ) req.getResultResponse();
@@ -620,16 +548,16 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
              * Now we have to build the prefetched object from the 'result'
              * local variable for the following call to next()
              */
-            Attribute ref = result.getAttributes().get( "ref" );
+            LDAPAttribute ref = oentry.getEntry().getAttribute("ref");
 
             if( ref == null || ref.size() > 0 )
             {
                 SearchResponseEntry respEntry = new SearchResponseEntryImpl( req.getMessageId() );
 
-                respEntry.setAttributes( result.getAttributes() );
+                respEntry.setLDAPAttributeSet( oentry.getEntry().getAttributeSet() );
 
                 try {
-					respEntry.setObjectName( new LdapDN(result.getName()) );
+					respEntry.setObjectName( new LdapDN(oentry.getEntry().getDN()) );
 				} catch (InvalidNameException e) {
 					LOG.error("Error",e);
 				}
@@ -641,33 +569,15 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
                 SearchResponseReference respRef = new SearchResponseReferenceImpl( req.getMessageId() );
 
                 respRef.setReferral( new ReferralImpl(  ) );
-
-                for( int ii = 0; ii < ref.size(); ii ++ )
+                String[] vals = ref.getStringValueArray();
+                for( int ii = 0; ii < vals.length; ii ++ )
                 {
-                    String url;
-
-                    try
-                    {
-                        url = ( String ) ref.get( ii );
+                    	String url;
+                    
+                        url = vals[ii];
 
                         respRef.getReferral().addLdapUrl( url );
-                    }
-                    catch( NamingException e )
-                    {
-                        try
-                        {
-                            underlying.finish();
-                        }
-                        catch( Throwable t )
-                        {
-                        }
-
-                        prefetched = null;
-
-                        respDone = getResponse( req, e );
-
-                        return next;
-                    }
+                    
                 }
 
                 prefetched = respRef;
@@ -687,19 +597,7 @@ public class SearchHandler implements LdapMessageHandler,LdapInfo
         }
     }
 
-	public void setEnv(Insert[] globalChain, Router router) {
-		this.globalChain = globalChain;
-		this.router = router;
-		
-	}
 
-
-
-
-	public void init(StartupConfiguration arg0) {
-		// TODO Auto-generated method stub
-		
-	}
 
 
 

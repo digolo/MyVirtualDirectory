@@ -37,42 +37,39 @@ import net.sourceforge.myvd.types.SessionVariables;
 
 
 
-import org.apache.directory.server.ldap.ExtendedOperationHandler;
+import net.sourceforge.myvd.protocol.ldap.mina.asn1.codec.Asn1CodecDecoder;
+import net.sourceforge.myvd.protocol.ldap.mina.asn1.codec.Asn1CodecEncoder;
 
-import org.apache.directory.server.ldap.support.LdapMessageHandler;
-import org.apache.directory.shared.asn1.codec.Asn1CodecDecoder;
-import org.apache.directory.shared.asn1.codec.Asn1CodecEncoder;
-
-import org.apache.directory.shared.ldap.exception.LdapNamingException;
-import org.apache.directory.shared.ldap.message.AbandonRequest;
-import org.apache.directory.shared.ldap.message.AbandonRequestImpl;
-import org.apache.directory.shared.ldap.message.AddRequest;
-import org.apache.directory.shared.ldap.message.AddRequestImpl;
-import org.apache.directory.shared.ldap.message.BindRequest;
-import org.apache.directory.shared.ldap.message.BindRequestImpl;
-import org.apache.directory.shared.ldap.message.CompareRequest;
-import org.apache.directory.shared.ldap.message.CompareRequestImpl;
-import org.apache.directory.shared.ldap.message.Control;
-import org.apache.directory.shared.ldap.message.DeleteRequest;
-import org.apache.directory.shared.ldap.message.DeleteRequestImpl;
-import org.apache.directory.shared.ldap.message.ExtendedRequest;
-import org.apache.directory.shared.ldap.message.ExtendedRequestImpl;
-import org.apache.directory.shared.ldap.message.MessageDecoder;
-import org.apache.directory.shared.ldap.message.MessageEncoder;
-import org.apache.directory.shared.ldap.message.ModifyDnRequest;
-import org.apache.directory.shared.ldap.message.ModifyDnRequestImpl;
-import org.apache.directory.shared.ldap.message.ModifyRequest;
-import org.apache.directory.shared.ldap.message.ModifyRequestImpl;
-import org.apache.directory.shared.ldap.message.Request;
-import org.apache.directory.shared.ldap.message.ResponseCarryingMessageException;
-import org.apache.directory.shared.ldap.message.ResultCodeEnum;
-import org.apache.directory.shared.ldap.message.ResultResponse;
-import org.apache.directory.shared.ldap.message.ResultResponseRequest;
-import org.apache.directory.shared.ldap.message.SearchRequest;
-import org.apache.directory.shared.ldap.message.SearchRequestImpl;
-import org.apache.directory.shared.ldap.message.UnbindRequest;
-import org.apache.directory.shared.ldap.message.UnbindRequestImpl;
-import org.apache.directory.shared.ldap.message.extended.NoticeOfDisconnect;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.exception.LdapNamingException;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.AbandonRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.AbandonRequestImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.AddRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.AddRequestImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.BindRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.BindRequestImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.CompareRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.CompareRequestImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.Control;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.DeleteRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.DeleteRequestImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ExtendedRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ExtendedRequestImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.MessageDecoder;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.MessageEncoder;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ModifyDnRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ModifyDnRequestImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ModifyRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ModifyRequestImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.Request;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ResponseCarryingMessageException;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ResultCodeEnum;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ResultResponse;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ResultResponseRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.SearchRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.SearchRequestImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.UnbindRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.UnbindRequestImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.extended.NoticeOfDisconnect;
 import org.apache.log4j.Logger;
 import org.apache.mina.common.IdleStatus;
 import org.apache.mina.common.IoFilterChain;
@@ -196,7 +193,7 @@ public class LdapProtocolProvider
             {
                 Class typeClass = Class.forName( type );
                 handler = ( MessageHandler ) clazz.newInstance();
-                ((LdapInfo) handler).setEnv(globalChain,router);
+                ((LDAPOperation) handler).setEnv(globalChain,router);
                 this.handler.addMessageHandler( typeClass, handler );
             }
             catch( Exception e )
@@ -391,7 +388,7 @@ public class LdapProtocolProvider
                     {
                         ResultResponse resp = req.getResultResponse();
                         resp.getLdapResult().setErrorMessage( "Unsupport critical control: " + control.getID() );
-                        resp.getLdapResult().setResultCode( ResultCodeEnum.UNAVAILABLECRITICALEXTENSION );
+                        resp.getLdapResult().setResultCode( ResultCodeEnum.UNAVAILABLE_CRITICAL_EXTENSION );
                         session.write( resp );
                         return;
                     }
@@ -404,7 +401,8 @@ public class LdapProtocolProvider
 
         public void exceptionCaught( IoSession session, Throwable cause )
         {
-            if ( cause.getCause() instanceof ResponseCarryingMessageException )
+            cause.printStackTrace();
+        	if ( cause.getCause() instanceof ResponseCarryingMessageException )
             {
                 ResponseCarryingMessageException rcme = ( ResponseCarryingMessageException ) cause.getCause();
                 session.write( rcme.getResponse() );

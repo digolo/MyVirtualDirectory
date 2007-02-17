@@ -43,23 +43,22 @@ import javax.naming.ldap.LdapContext;
 
 import net.sourceforge.myvd.chain.AddInterceptorChain;
 import net.sourceforge.myvd.inserts.Insert;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.exception.LdapException;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.AddRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.AddResponse;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.AddResponseImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.LdapResult;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ResultCodeEnum;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.name.LdapDN;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.util.ExceptionUtils;
 import net.sourceforge.myvd.router.Router;
 import net.sourceforge.myvd.types.DistinguishedName;
 import net.sourceforge.myvd.types.Entry;
 import net.sourceforge.myvd.types.Password;
 
 
-import org.apache.directory.server.core.configuration.StartupConfiguration;
-import org.apache.directory.server.ldap.support.LdapMessageHandler;
-import org.apache.directory.shared.ldap.exception.LdapException;
-import org.apache.directory.shared.ldap.message.AddRequest;
-import org.apache.directory.shared.ldap.message.AddResponse;
-import org.apache.directory.shared.ldap.message.AddResponseImpl;
-import org.apache.directory.shared.ldap.message.LdapResult;
-import org.apache.directory.shared.ldap.message.LdapResultImpl;
-import org.apache.directory.shared.ldap.message.ResultCodeEnum;
-import org.apache.directory.shared.ldap.name.LdapDN;
-import org.apache.directory.shared.ldap.util.ExceptionUtils;
+
+
 import org.apache.mina.common.IoSession;
 
 import org.slf4j.Logger;
@@ -78,35 +77,30 @@ import com.novell.ldap.LDAPException;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 231083 $
  */
-public class AddHandler implements LdapMessageHandler,LdapInfo
+public class AddHandler extends LDAPOperation
 {
     private static final Logger LOG = LoggerFactory.getLogger( AddHandler.class );
 
-    Insert[] globalChain;
-    Router router;
     
-    public void messageReceived( IoSession session, Object request ) 
+    
+    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass ) 
     {
         AddRequest req = ( AddRequest ) request;
         LdapResult result = req.getResultResponse().getLdapResult();
-
-        HashMap userSession = null;
         
-        userSession = (HashMap) session.getAttribute("VLDAP_SESSION");
-        DistinguishedName bindDN = (DistinguishedName) session.getAttribute("VLDAP_BINDDN");
-        Password pass = (Password) session.getAttribute("VLDAP_BINDPASS");
+
         
         try
         {
         	
-        	LDAPAttributeSet set = new LDAPAttributeSet();
+        	/*LDAPAttributeSet set = new LDAPAttributeSet();
 			
 			NamingEnumeration nenum = req.getAttributes().getAll();
 			while (nenum.hasMore()) {
 				Attribute attrib = (Attribute) nenum.next();
 				/*if (this.toIgnore.contains(attrib.getID().toLowerCase())) {
 					continue;
-				}*/
+				}
 				LDAPAttribute ldapAttrib = new LDAPAttribute(attrib.getID());
 				NamingEnumeration vals = attrib.getAll();
 				while (vals.hasMore()) {
@@ -114,10 +108,10 @@ public class AddHandler implements LdapMessageHandler,LdapInfo
 				}
 				
 				set.add(ldapAttrib);
-	   		}
+	   		}*/
         	
             AddInterceptorChain chain = new AddInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),this.router);
-            chain.nextAdd(new Entry(new LDAPEntry(req.getEntry().toNormName(),set)),new LDAPConstraints());
+            chain.nextAdd(new Entry(new LDAPEntry(req.getEntry().toNormName(),req.getAttribSet())),new LDAPConstraints());
         }
         catch( LDAPException e )
         {
@@ -131,7 +125,7 @@ public class AddHandler implements LdapMessageHandler,LdapInfo
             ResultCodeEnum code;
 
             
-                code = ResultCodeEnum.getResultCodeEnum(e.getResultCode());
+                code = ResultCodeEnum.getResultCode(e.getResultCode());
             
 
             
@@ -149,43 +143,10 @@ public class AddHandler implements LdapMessageHandler,LdapInfo
 				}
             }
 
-            session.write( result );
+            session.write( req.getResultResponse() );
             return;
-        }
-        catch( NamingException e )
-        {
-            String msg = "failed to add entry " + req.getEntry().toString();
-
-            if ( LOG.isDebugEnabled() )
-            {
-                msg += ":\n" + ExceptionUtils.getStackTrace( e );
-            }
-
-            ResultCodeEnum code;
-
-            if( e instanceof LdapException )
-            {
-                code = ( ( LdapException ) e ).getResultCode();
-            }
-            else
-            {
-                code = ResultCodeEnum.getBestEstimate( e, req.getType() );
-            }
-
-            result.setResultCode( code );
-            result.setErrorMessage( msg );
-            if( e.getResolvedName() != null )
-            {
-                try {
-					result.setMatchedDn(
-					        new LdapDN(e.getResolvedName().toString()) );
-				} catch (InvalidNameException e1) {
-					LOG.error("Error",e1);
-				}
-            }
-
-            session.write( result );
-            return;
+        
+        
         } catch (Throwable t) {
         	
                 String msg = "failed to add entry " + req.getEntry() + "; " + t.toString();
@@ -198,33 +159,24 @@ public class AddHandler implements LdapMessageHandler,LdapInfo
                 ResultCodeEnum code;
 
                 
-                    code = ResultCodeEnum.OPERATIONSERROR;
+                    code = ResultCodeEnum.OPERATIONS_ERROR;
                 
 
                 result.setResultCode( code );
                 result.setErrorMessage( msg );
                 
 
-                session.write( result );
+                session.write( req.getResultResponse() );
                 return;
             
         }
 
         result.setResultCode( ResultCodeEnum.SUCCESS );
-        result.setMatchedDn( req.getEntry() );
-        session.write( result );
+        
+        session.write( req.getResultResponse() );
     }
 
-	public void setEnv(Insert[] globalChain, Router router) {
-		this.globalChain = globalChain;
-		this.router = router;
-		
-	}
 	
-	public void init( StartupConfiguration cfg )
-    {
-    }
-
 	
 }
 

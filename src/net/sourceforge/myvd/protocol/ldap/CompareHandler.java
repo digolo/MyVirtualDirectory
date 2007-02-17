@@ -47,14 +47,15 @@ import net.sourceforge.myvd.types.DistinguishedName;
 import net.sourceforge.myvd.types.Password;
 
 
-import org.apache.directory.server.core.configuration.StartupConfiguration;
-import org.apache.directory.server.ldap.support.LdapMessageHandler;
-import org.apache.directory.shared.ldap.message.CompareRequest;
-import org.apache.directory.shared.ldap.message.LdapResult;
-import org.apache.directory.shared.ldap.message.ResultCodeEnum;
-import org.apache.directory.shared.ldap.name.LdapDN;
-import org.apache.directory.shared.ldap.util.ExceptionUtils;
+
+
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.CompareRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.LdapResult;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ResultCodeEnum;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.name.LdapDN;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.util.ExceptionUtils;
 import org.apache.mina.common.IoSession;
+import org.apache.mina.handler.demux.MessageHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,31 +70,22 @@ import com.novell.ldap.LDAPException;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 231083 $
  */
-public class CompareHandler implements LdapMessageHandler,LdapInfo
+public class CompareHandler extends LDAPOperation
 {
     private static final Logger LOG = LoggerFactory.getLogger( CompareHandler.class );
-	private Insert[] globalChain;
-	private Router router;
 
-    public void messageReceived( IoSession session, Object request )
+
+    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
         CompareRequest req = ( CompareRequest ) request;
         LdapResult result = req.getResultResponse().getLdapResult();
 
-        HashMap userSession = null;
+       
         
         try
         {
         	
-        	userSession = (HashMap) session.getAttribute("VLDAP_SESSION");
-            DistinguishedName bindDN = (DistinguishedName) session.getAttribute("VLDAP_BINDDN");
-            Password pass = (Password) session.getAttribute("VLDAP_BINDPASS");
-            
-            if (bindDN == null) {
-            	bindDN = new DistinguishedName("");
-            	pass = new Password();
-            }
-            
+        	
             
             Attribute attrib = new Attribute("");
             attrib.setAttribute(new LDAPAttribute(req.getAttributeId(),req.getAssertionValue()));
@@ -102,7 +94,7 @@ public class CompareHandler implements LdapMessageHandler,LdapInfo
             
             chain.nextCompare(new DistinguishedName(req.getName().toString()),attrib,new LDAPConstraints());
 
-            result.setResultCode( ResultCodeEnum.COMPARETRUE );
+            result.setResultCode( ResultCodeEnum.COMPARE_TRUE );
             
             
         }
@@ -116,7 +108,7 @@ public class CompareHandler implements LdapMessageHandler,LdapInfo
             }
 
             ResultCodeEnum code;
-            code = ResultCodeEnum.getResultCodeEnum(e .getResultCode() );
+            code = ResultCodeEnum.getResultCode(e .getResultCode() );
             
 
             result.setResultCode( code );
@@ -145,7 +137,7 @@ public class CompareHandler implements LdapMessageHandler,LdapInfo
             ResultCodeEnum code;
 
             
-                code = ResultCodeEnum.OPERATIONSERROR;
+                code = ResultCodeEnum.OPERATIONS_ERROR;
             
 
             result.setResultCode( code );
@@ -161,16 +153,7 @@ public class CompareHandler implements LdapMessageHandler,LdapInfo
         session.write( result );
     }
 
-	public void setEnv(Insert[] globalChain, Router router) {
-		this.globalChain = globalChain;
-		this.router = router;
-		
-	}
-
-	public void init(StartupConfiguration arg0) {
-		// TODO Auto-generated method stub
-		
-	}
+	
 
 	
 }

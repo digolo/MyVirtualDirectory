@@ -26,9 +26,10 @@ import javax.naming.NamingException;
 import javax.naming.ldap.LdapContext;
 
 
-import org.apache.directory.server.core.configuration.StartupConfiguration;
-import org.apache.directory.server.ldap.support.LdapMessageHandler;
+
+
 import org.apache.mina.common.IoSession;
+import org.apache.mina.handler.demux.MessageHandler;
 
 import net.sourceforge.myvd.inserts.Insert;
 import net.sourceforge.myvd.router.Router;
@@ -45,24 +46,16 @@ import net.sourceforge.myvd.types.SessionVariables;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 161724 $
  */
-public class UnBindHandler implements LdapMessageHandler,LdapInfo
+public class UnBindHandler extends LDAPOperation
 {
-    public void messageReceived( IoSession session, Object request )
+    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
 //    	reset the session username and pass
-    	HashMap userSession = (HashMap) session.getAttribute("VLDAP_SESSION");
+    	
     	userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
-    	session.setAttribute("VLDAP_BINDDN",new DistinguishedName(""));
-        session.setAttribute("VLDAP_BINDPASS",new Password());
+    	session.setAttribute("MYVD_BINDDN",new DistinguishedName(""));
+        session.setAttribute("MYVD_BINDPASS",new Password());
     }
 
-	public void setEnv(Insert[] globalChain, Router router) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	public void init(StartupConfiguration arg0) {
-		// TODO Auto-generated method stub
-		
-	}
+	
 }
