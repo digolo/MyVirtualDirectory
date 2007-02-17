@@ -32,13 +32,13 @@ import net.sourceforge.myvd.types.ExtendedOperation;
 import net.sourceforge.myvd.types.Password;
 
 
-import org.apache.directory.server.core.configuration.StartupConfiguration;
-import org.apache.directory.server.ldap.support.LdapMessageHandler;
-import org.apache.directory.shared.ldap.message.ExtendedRequest;
-import org.apache.directory.shared.ldap.message.LdapResult;
-import org.apache.directory.shared.ldap.message.ResultCodeEnum;
-import org.apache.directory.shared.ldap.name.LdapDN;
-import org.apache.directory.shared.ldap.util.ExceptionUtils;
+
+
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ExtendedRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.LdapResult;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ResultCodeEnum;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.name.LdapDN;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.util.ExceptionUtils;
 import org.apache.mina.common.IoSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,32 +54,23 @@ import com.novell.ldap.LDAPExtendedOperation;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 161724 $
  */
-public class ExtendedHandler implements LdapMessageHandler,LdapInfo
+public class ExtendedHandler extends LDAPOperation
 {
 	
 	 private static final Logger LOG = LoggerFactory.getLogger( ExtendedHandler.class );
-		private Insert[] globalChain;
-		private Router router;
 		
-    public void messageReceived( IoSession session, Object request )
+		
+    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
         ExtendedRequest req = (ExtendedRequest) request;
         LdapResult result = req.getResultResponse().getLdapResult();
         
-HashMap userSession = null;
+
         
         
         
         try
         {
-        	userSession = (HashMap) session.getAttribute("VLDAP_SESSION");
-            DistinguishedName bindDN = (DistinguishedName) session.getAttribute("VLDAP_BINDDN");
-            Password pass = (Password) session.getAttribute("VLDAP_BINDPASS");
-            
-            if (bindDN == null) {
-            	bindDN = new DistinguishedName("");
-            	pass = new Password();
-            }
             
             ExetendedOperationInterceptorChain chain = new ExetendedOperationInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),router);
             
@@ -99,7 +90,7 @@ HashMap userSession = null;
             ResultCodeEnum code;
 
            
-           code = ResultCodeEnum.getResultCodeEnum(e.getResultCode());
+           code = ResultCodeEnum.getResultCode(e.getResultCode());
            
             result.setResultCode( code );
             result.setErrorMessage( msg );
@@ -113,7 +104,7 @@ HashMap userSession = null;
 				}
             }
 
-            session.write( result );
+            session.write( req.getResultResponse() );
             return;
         } catch (Throwable t) {
         	
@@ -127,14 +118,14 @@ HashMap userSession = null;
             ResultCodeEnum code;
 
             
-                code = ResultCodeEnum.OPERATIONSERROR;
+                code = ResultCodeEnum.OPERATIONS_ERROR;
             
 
             result.setResultCode( code );
             result.setErrorMessage( msg );
             
 
-            session.write( result );
+            session.write( req.getResultResponse() );
             return;
         
     }
@@ -145,17 +136,8 @@ HashMap userSession = null;
 		} catch (InvalidNameException e) {
 			LOG.error("Error",e);
 		}
-        session.write( result );
+        session.write( req.getResultResponse() );
     }
 
-	public void setEnv(Insert[] globalChain, Router router) {
-		this.globalChain = globalChain;
-		this.router = router;
-		
-	}
-
-	public void init(StartupConfiguration arg0) {
-		// TODO Auto-generated method stub
-		
-	}
+	
 }

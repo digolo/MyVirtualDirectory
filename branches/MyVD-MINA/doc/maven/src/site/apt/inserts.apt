@@ -6,10 +6,33 @@
 
 Insert Reference
 
- This guide desibribes how existing inserts work, are configured and any external dependencies they may have.
+ This guide desibribes how existing inserts work, are configured and any external dependencies they may have.  
 
 * Access Controls
 
+ The access controls for MyVD are based on a draft RFC.  The RFC can be read [[www.cnn.com] here].  The access control system utilizes a list of access control items.  Each item is structured as:
+ 
++--------------+
+scope-base#scope#grant/deny:permisions#scope#users
++--------------+
+ 
+ The below table explains each part of the ACI:
+ 
+*-------------+----------------------------+----------------------------------------+
+|Component    |Description                 |Example                                 |
+*-------------+----------------------------+----------------------------------------+
+|scope-domain |The base of the scope this ACI applies to.  This ACI will only be considered for operations that are subordinates of this DN|ou=people,dc=domain,dc=com|
+*-------------+----------------------------+----------------------------------------+
+|scope        |The scope of this ACI.  The scope can either be "subtree" to apply to all subordinates of the scope-base or "entry" to apply only to the scope-domain.|subtree OR entry|
+*-------------+----------------------------+----------------------------------------+
+|grant/deny   |Determines if the outcome of this ACI should result in a grant or deny|grant OR deny|
+*-------------+----------------------------+----------------------------------------+
+|permisions   |Which permisions this ACI grants or denys. See the below table for a list of permisions|
+*-------------+----------------------------+----------------------------------------+
+|scope        |Whether this applies to entry results or attributes. The below table explains the different options|[entry] OR [all] OR a comma sepperated list of attribute names|
+*-------------+----------------------------+----------------------------------------+
+|users        |Which users this ACI applies to.  The below table lists the possible values for this option|See the below table|
+*-------------+----------------------------+----------------------------------------+
 
 * Attribute Cleaner
 

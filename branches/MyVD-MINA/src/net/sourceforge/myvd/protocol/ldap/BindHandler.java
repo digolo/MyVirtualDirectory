@@ -65,16 +65,16 @@ import net.sourceforge.myvd.types.SessionVariables;
 
 
 
-import org.apache.directory.server.core.configuration.StartupConfiguration;
-import org.apache.directory.server.ldap.support.LdapMessageHandler;
-import org.apache.directory.shared.ldap.message.BindRequest;
-import org.apache.directory.shared.ldap.message.BindResponse;
-import org.apache.directory.shared.ldap.message.BindResponseImpl;
-import org.apache.directory.shared.ldap.message.Control;
-import org.apache.directory.shared.ldap.message.LdapResult;
-import org.apache.directory.shared.ldap.message.LdapResultImpl;
-import org.apache.directory.shared.ldap.message.ResultCodeEnum;
-import org.apache.directory.shared.ldap.util.ExceptionUtils;
+
+
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.BindRequest;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.BindResponse;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.BindResponseImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.Control;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.LdapResult;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.LdapResultImpl;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.message.ResultCodeEnum;
+import net.sourceforge.myvd.protocol.ldap.mina.ldap.util.ExceptionUtils;
 import org.apache.mina.common.IoSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,16 +90,15 @@ import com.novell.ldap.LDAPException;
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  * @version $Rev: 231083 $
  */
-public class BindHandler implements LdapMessageHandler,LdapInfo
+public class BindHandler extends LDAPOperation
 {
     private static final Logger LOG = LoggerFactory.getLogger( BindHandler.class );
     private static final Control[] EMPTY = new Control[0];
     
-    Insert[] globalChain;
-    Router router;
+   
 
 
-    public void messageReceived( IoSession session, Object request )
+    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
 
         BindRequest req = ( BindRequest ) request;
@@ -111,7 +110,7 @@ public class BindHandler implements LdapMessageHandler,LdapInfo
         // if the bind request is not simple then we freak: no strong auth yet
         if ( ! req.isSimple() )
         {
-            result.setResultCode( ResultCodeEnum.AUTHMETHODNOTSUPPORTED );
+            result.setResultCode( ResultCodeEnum.AUTH_METHOD_NOT_SUPPORTED );
             result.setErrorMessage( "Only simple binds currently supported" );
             session.write( resp );
             return;
@@ -141,18 +140,11 @@ public class BindHandler implements LdapMessageHandler,LdapInfo
         
         Control[] connCtls = ( Control[] ) req.getControls().values().toArray( EMPTY );
 
-        HashMap userSession = null;
+        
         
         try
         {
-            userSession = (HashMap) session.getAttribute("VLDAP_SESSION");
-            DistinguishedName bindDN = (DistinguishedName) session.getAttribute("VLDAP_BINDDN");
-            Password pass = (Password) session.getAttribute("VLDAP_BINDPASS");
             
-            if (bindDN == null) {
-            	bindDN = new DistinguishedName("");
-            	pass = new Password();
-            }
             
             DistinguishedName newBindDN = new DistinguishedName(dn);
             Password newPass = new Password(creds);
@@ -160,8 +152,8 @@ public class BindHandler implements LdapMessageHandler,LdapInfo
             BindInterceptorChain chain = new BindInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),router);
             chain.nextBind(newBindDN,newPass,new LDAPConstraints());
             
-            session.setAttribute("VLDAP_BINDDN",newBindDN);
-            session.setAttribute("VLDAP_BINDPASS",newPass);
+            session.setAttribute("MYVD_BINDDN",newBindDN);
+            session.setAttribute("MYVD_BINDPASS",newPass);
             
         }
         catch( LDAPException e )
@@ -169,10 +161,10 @@ public class BindHandler implements LdapMessageHandler,LdapInfo
            
         	//bind failed, reset the session username and pass
         	userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
-        	session.setAttribute("VLDAP_BINDDN",new DistinguishedName(""));
-            session.setAttribute("VLDAP_BINDPASS",new Password());
+        	session.setAttribute("MYVD_BINDDN",new DistinguishedName(""));
+            session.setAttribute("MYVD_BINDPASS",new Password());
         	
-            result.setResultCode( ResultCodeEnum.getResultCodeEnum(e.getResultCode())  );
+            result.setResultCode( ResultCodeEnum.getResultCode(e.getResultCode())  );
             
 
             String msg = "Bind failed ;" + e.getMessage();
@@ -185,7 +177,7 @@ public class BindHandler implements LdapMessageHandler,LdapInfo
 
 
             result.setErrorMessage( msg );
-            session.write( resp );
+            session.write( req.getResultResponse() );
             return;
         }catch (Throwable t) {
         	
@@ -199,14 +191,14 @@ public class BindHandler implements LdapMessageHandler,LdapInfo
             ResultCodeEnum code;
 
             
-                code = ResultCodeEnum.OPERATIONSERROR;
+                code = ResultCodeEnum.OPERATIONS_ERROR;
             
 
             resp.getLdapResult().setResultCode( code );
             resp.getLdapResult().setErrorMessage( msg );
             
 
-            session.write( resp );
+            session.write( req.getResultResponse() );
             return;
         
     }
@@ -214,20 +206,10 @@ public class BindHandler implements LdapMessageHandler,LdapInfo
         
         result.setResultCode( ResultCodeEnum.SUCCESS );
         result.setMatchedDn( req.getName() );
-        session.write( resp );
+        session.write( req.getResultResponse() );
     }
 
 
-	public void setEnv(Insert[] globalChain, Router router) {
-		this.globalChain = globalChain;
-		this.router = router;
-		
-	}
-
-
-	public void init(StartupConfiguration arg0) {
-		// TODO Auto-generated method stub
-		
-	}
+	
 }
 
