@@ -105,6 +105,9 @@ public class LDAPConnectionPool {
 					continue;
 				}
 				
+				
+				
+				
 				if (wrapper.getBindDN() != null && bindDN.toString().equals(wrapper.getBindDN().toString())) {
 					return wrapper;
 				} else {
@@ -120,7 +123,10 @@ public class LDAPConnectionPool {
 			}
 		}
 		
-		if (this.maxCons <= this.pool.size()) {
+		
+		//System.out.println("max cons:" + this.maxCons + "; cur cons : " + this.pool.size());
+		
+		if (this.maxCons > this.pool.size()) {
 			ConnectionWrapper wrapper = new ConnectionWrapper(this.interceptor);
 			wrapper.wasLocked();
 			wrapper.reConnect();
