@@ -60,7 +60,7 @@ public class ExtendedHandler extends LDAPOperation
 	 private static final Logger LOG = LoggerFactory.getLogger( ExtendedHandler.class );
 		
 		
-    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
+    public void messageReceived( IoSession session, Object request,HashMap userRequest,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
         ExtendedRequest req = (ExtendedRequest) request;
         LdapResult result = req.getResultResponse().getLdapResult();
@@ -72,7 +72,7 @@ public class ExtendedHandler extends LDAPOperation
         try
         {
             
-            ExetendedOperationInterceptorChain chain = new ExetendedOperationInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),router);
+            ExetendedOperationInterceptorChain chain = new ExetendedOperationInterceptorChain(bindDN,pass,0,this.globalChain,userSession,userRequest,router);
             
             ExtendedOperation op = new ExtendedOperation(null, new LDAPExtendedOperation(req.getOid(),req.getPayload()));
             chain.nextExtendedOperations(op,new LDAPConstraints());

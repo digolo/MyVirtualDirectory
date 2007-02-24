@@ -61,7 +61,7 @@ public class ModifyHandler extends LDAPOperation
     
 	
 
-    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
+    public void messageReceived( IoSession session, Object request,HashMap userRequest,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
         ModifyRequest req = ( ModifyRequest ) request;
         LdapResult result = req.getResultResponse().getLdapResult();
@@ -69,7 +69,7 @@ public class ModifyHandler extends LDAPOperation
         
         try
         {
-            ModifyInterceptorChain chain = new ModifyInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),this.router);
+            ModifyInterceptorChain chain = new ModifyInterceptorChain(bindDN,pass,0,this.globalChain,userSession,userRequest,this.router);
             chain.nextModify(new DistinguishedName(req.getName().toString()),req.getMods(),new LDAPConstraints());   
         }
         catch ( LDAPException e )

@@ -57,7 +57,7 @@ import org.apache.mina.handler.demux.MessageHandler;
  */
 public class AbandonHandler extends LDAPOperation
 {
-    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
+    public void messageReceived( IoSession session, Object request,HashMap userRequest,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
         AbandonRequestImpl req = ( AbandonRequestImpl ) request;
         int abandonedId = req.getAbandoned();

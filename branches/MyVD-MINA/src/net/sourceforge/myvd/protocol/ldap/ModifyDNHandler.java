@@ -60,7 +60,7 @@ public class ModifyDNHandler extends LDAPOperation
 {
     private static final Logger LOG = LoggerFactory.getLogger( ModifyDNHandler.class );
 	
-    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
+    public void messageReceived( IoSession session, Object request,HashMap userRequest,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
         ModifyDnRequest req = ( ModifyDnRequest ) request;
         LdapResult result = req.getResultResponse().getLdapResult();
@@ -85,7 +85,7 @@ public class ModifyDNHandler extends LDAPOperation
                 
                 DistinguishedName newRDN = new DistinguishedName( req.getNewRdn().toString() );
 
-                RenameInterceptorChain chain = new RenameInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),this.router);
+                RenameInterceptorChain chain = new RenameInterceptorChain(bindDN,pass,0,this.globalChain,userSession,userRequest,this.router);
                 chain.nextRename(oldDn,newRDN,newSuperior,new Bool(req.getDeleteOldRdn()),new LDAPConstraints());
             }
             else
@@ -94,7 +94,7 @@ public class ModifyDNHandler extends LDAPOperation
             	System.out.println("oldDN : " + oldDn.getDN());
             	DistinguishedName newRDN = new DistinguishedName( req.getNewRdn().toString() );
             	
-            	RenameInterceptorChain chain = new RenameInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),this.router);
+            	RenameInterceptorChain chain = new RenameInterceptorChain(bindDN,pass,0,this.globalChain,userSession,userRequest,this.router);
                 chain.nextRename(oldDn,newRDN,new Bool(req.getDeleteOldRdn()),new LDAPConstraints());
             }
         }

@@ -83,7 +83,7 @@ public class AddHandler extends LDAPOperation
 
     
     
-    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass ) 
+    public void messageReceived( IoSession session, Object request,HashMap userRequest,HashMap userSession,DistinguishedName bindDN,Password pass ) 
     {
         AddRequest req = ( AddRequest ) request;
         LdapResult result = req.getResultResponse().getLdapResult();
@@ -110,7 +110,7 @@ public class AddHandler extends LDAPOperation
 				set.add(ldapAttrib);
 	   		}*/
         	
-            AddInterceptorChain chain = new AddInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),this.router);
+            AddInterceptorChain chain = new AddInterceptorChain(bindDN,pass,0,this.globalChain,userSession,userRequest,this.router);
             chain.nextAdd(new Entry(new LDAPEntry(req.getEntry().toNormName(),req.getAttribSet())),new LDAPConstraints());
         }
         catch( LDAPException e )

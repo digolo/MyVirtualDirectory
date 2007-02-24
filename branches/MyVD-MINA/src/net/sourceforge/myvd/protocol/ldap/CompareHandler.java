@@ -75,7 +75,7 @@ public class CompareHandler extends LDAPOperation
     private static final Logger LOG = LoggerFactory.getLogger( CompareHandler.class );
 
 
-    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
+    public void messageReceived( IoSession session, Object request,HashMap userRequest,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
         CompareRequest req = ( CompareRequest ) request;
         LdapResult result = req.getResultResponse().getLdapResult();
@@ -90,7 +90,7 @@ public class CompareHandler extends LDAPOperation
             Attribute attrib = new Attribute("");
             attrib.setAttribute(new LDAPAttribute(req.getAttributeId(),req.getAssertionValue()));
             
-            CompareInterceptorChain chain = new CompareInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),router);
+            CompareInterceptorChain chain = new CompareInterceptorChain(bindDN,pass,0,this.globalChain,userSession,userRequest,router);
             
             chain.nextCompare(new DistinguishedName(req.getName().toString()),attrib,new LDAPConstraints());
 

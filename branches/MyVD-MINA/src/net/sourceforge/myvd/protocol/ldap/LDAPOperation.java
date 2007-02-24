@@ -7,6 +7,7 @@ import net.sourceforge.myvd.inserts.Insert;
 import net.sourceforge.myvd.router.Router;
 import net.sourceforge.myvd.types.DistinguishedName;
 import net.sourceforge.myvd.types.Password;
+import net.sourceforge.myvd.types.RequestVariables;
 import net.sourceforge.myvd.types.SessionVariables;
 
 
@@ -25,6 +26,8 @@ public abstract class LDAPOperation implements MessageHandler {
 
 	public void messageReceived(IoSession session, Object request) {
 		HashMap userSession = null;
+		
+		
 		
 		userSession = (HashMap) session.getAttribute("MYVD_SESSION");
 		if (userSession == null) {
@@ -46,7 +49,27 @@ public abstract class LDAPOperation implements MessageHandler {
 	       
 	    }
 	    
-	    messageReceived(session,request,userSession,bindDN,pass);
+	    HashMap<Object,Object> userRequest = new HashMap<Object,Object>();
+	    
+	    String addr = session.getLocalAddress().toString();
+	    String host = addr.substring(0,addr.indexOf('/'));
+	    String ip = addr.substring(addr.indexOf('/') + 1,addr.indexOf(':'));
+	    int port = Integer.parseInt(addr.substring(addr.lastIndexOf(':') + 1));
+	    
+	    userRequest.put(RequestVariables.MYVD_LOCAL_ADDR, host);
+	    userRequest.put(RequestVariables.MYVD_LOCAL_IP, ip);
+	    userRequest.put(RequestVariables.MYVD_LOCAL_PORT, port);
+	    
+	    addr = session.getRemoteAddress().toString();
+	    host = addr.substring(0,addr.indexOf('/'));
+	    ip = addr.substring(addr.indexOf('/') + 1,addr.indexOf(':'));
+	    port = Integer.parseInt(addr.substring(addr.lastIndexOf(':') + 1));
+	    
+	    userRequest.put(RequestVariables.MYVD_REMOTE_ADDR, host);
+	    userRequest.put(RequestVariables.MYVD_REMOTE_IP, ip);
+	    userRequest.put(RequestVariables.MYVD_REMOTE_PORT, port);
+	    
+	    messageReceived(session,request,userRequest,userSession,bindDN,pass);
 	}
 
 	
@@ -55,6 +78,6 @@ public abstract class LDAPOperation implements MessageHandler {
 		this.router = router;
 	}
 	
-	public abstract void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass );
+	public abstract void messageReceived( IoSession session, Object request,HashMap userRequest,HashMap userSession,DistinguishedName bindDN,Password pass );
 
 }
