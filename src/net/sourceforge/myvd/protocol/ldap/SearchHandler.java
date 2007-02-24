@@ -92,7 +92,7 @@ public class SearchHandler extends LDAPOperation
 
     
     
-    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
+    public void messageReceived( IoSession session, Object request,HashMap userRequest,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
         
         SearchRequest req = ( SearchRequest ) request;
@@ -143,14 +143,14 @@ public class SearchHandler extends LDAPOperation
             
 			Filter filter = req.getFilter();//   new Filter(stringFilter.trim()); 
             
-			System.out.println("Filter : " + filter.getValue());
+			
 			
             Iterator it;
             ArrayList<net.sourceforge.myvd.types.Attribute> reqAttribs = req.getAttributes();
             
             DistinguishedName base = new DistinguishedName(req.getBase() == null ? "" : req.getBase().toString()); 
             
-            SearchInterceptorChain chain = new SearchInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),this.router);
+            SearchInterceptorChain chain = new SearchInterceptorChain(bindDN,pass,0,this.globalChain,userSession,userRequest,this.router);
             chain.nextSearch(base,new Int(req.getScope().getValue()),filter,reqAttribs,new Bool(req.getTypesOnly()),res,new LDAPSearchConstraints());
             
             res.start();

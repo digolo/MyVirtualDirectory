@@ -98,7 +98,7 @@ public class BindHandler extends LDAPOperation
    
 
 
-    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
+    public void messageReceived( IoSession session, Object request,HashMap userRequest,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
 
         BindRequest req = ( BindRequest ) request;
@@ -149,7 +149,7 @@ public class BindHandler extends LDAPOperation
             DistinguishedName newBindDN = new DistinguishedName(dn);
             Password newPass = new Password(creds);
             
-            BindInterceptorChain chain = new BindInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),router);
+            BindInterceptorChain chain = new BindInterceptorChain(bindDN,pass,0,this.globalChain,userSession,userRequest,router);
             chain.nextBind(newBindDN,newPass,new LDAPConstraints());
             
             session.setAttribute("MYVD_BINDDN",newBindDN);

@@ -60,7 +60,7 @@ public class DeleteHandler extends LDAPOperation
     private static final Logger LOG = LoggerFactory.getLogger( DeleteHandler.class );
 	
 
-    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
+    public void messageReceived( IoSession session, Object request,HashMap userRequest,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
         DeleteRequest req = ( DeleteRequest ) request;
         LdapResult result = req.getResultResponse().getLdapResult();
@@ -74,7 +74,7 @@ public class DeleteHandler extends LDAPOperation
         	userSession = (HashMap) session.getAttribute("MYVD_SESSION");
             
             
-            DeleteInterceptorChain chain = new DeleteInterceptorChain(bindDN,pass,0,this.globalChain,userSession,new HashMap(),router);
+            DeleteInterceptorChain chain = new DeleteInterceptorChain(bindDN,pass,0,this.globalChain,userSession,userRequest,router);
             chain.nextDelete(new DistinguishedName(req.getName().toString()),new LDAPConstraints());
             
         }

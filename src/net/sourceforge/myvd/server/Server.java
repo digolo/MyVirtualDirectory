@@ -47,9 +47,11 @@ import org.apache.log4j.PropertyConfigurator;
 import org.apache.mina.common.DefaultIoFilterChainBuilder;
 import org.apache.mina.common.ExecutorThreadModel;
 import org.apache.mina.common.IoAcceptor;
+import org.apache.mina.common.IoFilterChainBuilder;
 import org.apache.mina.common.IoSession;
 import org.apache.mina.common.TransportType;
 import org.apache.mina.common.WriteFuture;
+import org.apache.mina.filter.SSLFilter;
 import org.apache.mina.transport.socket.nio.SocketAcceptor;
 import org.apache.mina.transport.socket.nio.SocketAcceptorConfig;
 import org.apache.mina.transport.socket.nio.SocketSessionConfig;
@@ -58,6 +60,8 @@ import org.apache.mina.transport.socket.nio.SocketSessionConfig;
 import com.novell.ldap.LDAPConnection;
 import com.novell.ldap.LDAPException;
 import com.novell.ldap.util.DN;
+
+import edu.emory.mathcs.backport.java.util.concurrent.Executors;
 
 
 public class Server {
@@ -109,20 +113,22 @@ public class Server {
 		logger.debug("Local chain loaded");
 		
 		portString = props.getProperty("server.listener.port","");
-		
-		try {
-			startLDAP(portString);
-		} catch (Throwable t) {
-			logger.error("Could not start LDAP listener",t);
+		if (! portString.equals("")) {
+			try {
+				startLDAP(portString,null);
+			} catch (Throwable t) {
+				logger.error("Could not start LDAP listener",t);
+			}
 		}
-			
-		/*
+		
 		portString = props.getProperty("server.secure.listener.port","");
+		System.out.println("port string : " + portString);
 		if (! portString.equals("")) {
 			String keyStorePath = props.getProperty("server.secure.keystore","");
 			logger.debug("Key store : " + keyStorePath);
 			
 			String keyStorePass = props.getProperty("server.secure.keypass","");
+			
 			KeyStore keystore;
 			try {
 				keystore = KeyStore.getInstance("JKS");
@@ -133,22 +139,17 @@ public class Server {
 				sslc.init(kmf.getKeyManagers(), null, null);
 				
 				SSLFilter sslFilter = new SSLFilter(sslc);
-				
-				sslMinaRegistry = new SimpleServiceRegistry();
-				Service service = new Service( "ldap", TransportType.SOCKET, new InetSocketAddress( Integer.parseInt(portString) ) );
-				sslMinaRegistry.getIoAcceptor(TransportType.SOCKET).getFilterChain().addLast( "sslFilter", sslFilter );
-				sslMinaRegistry.bind(service, new LdapProtocolProvider(this.globalChain,this.router));
-			    
-				
-				
-				
-				
-			} catch (Exception e) {
-				logger.error("Could not load SSL : " + e.toString(),e);
-			} 
-			
+				DefaultIoFilterChainBuilder chain = new DefaultIoFilterChainBuilder();
+		        chain.addLast( "SSL", sslFilter );
+		        
+		        startLDAP(portString,chain);
+			} catch (Throwable t) {
+				logger.error("Could not start LDAPS listener",t);
+				t.printStackTrace();
+			}
+		        
 		}
-		*/
+		
 		
 		
 	}
@@ -163,7 +164,7 @@ public class Server {
 		logger = Logger.getLogger(Server.class.getName());
 	}
 
-	private void startLDAP(String portString) throws LdapNamingException, IOException {
+	private void startLDAP(String portString,IoFilterChainBuilder chainBuilder) throws LdapNamingException, IOException {
 		if (! portString.equals("")) {
 			logger.debug("Starting server on port : " + portString);
 			
@@ -174,7 +175,12 @@ public class Server {
             acceptorCfg.setDisconnectOnUnbind( false );
             
             acceptorCfg.setReuseAddress( true );
-            acceptorCfg.setFilterChainBuilder( new DefaultIoFilterChainBuilder() );
+            
+            if (chainBuilder == null) {
+            	acceptorCfg.setFilterChainBuilder( new DefaultIoFilterChainBuilder() );
+            } else {
+            	acceptorCfg.setFilterChainBuilder( chainBuilder );
+            }
             acceptorCfg.setThreadModel( threadModel );
             
             ((SocketSessionConfig)(acceptorCfg.getSessionConfig())).setTcpNoDelay( true );
@@ -184,7 +190,7 @@ public class Server {
             logger.debug("AcceptorConfig : " + acceptorCfg);
             logger.debug("tcpAcceptor : " + tcpAcceptor);
             
-            tcpAcceptor = new SocketAcceptor();
+            tcpAcceptor = new SocketAcceptor(Runtime.getRuntime().availableProcessors() + 1,Executors.newCachedThreadPool());
             
             //try 3 times?
             for (int i=0;i<3;i++) {

@@ -48,13 +48,11 @@ import net.sourceforge.myvd.types.SessionVariables;
  */
 public class UnBindHandler extends LDAPOperation
 {
-    public void messageReceived( IoSession session, Object request,HashMap userSession,DistinguishedName bindDN,Password pass )
+    public void messageReceived( IoSession session, Object request,HashMap userRequest,HashMap userSession,DistinguishedName bindDN,Password pass )
     {
 //    	reset the session username and pass
     	
-    	userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
-    	session.setAttribute("MYVD_BINDDN",new DistinguishedName(""));
-        session.setAttribute("MYVD_BINDPASS",new Password());
+    	
     }
 
 	
