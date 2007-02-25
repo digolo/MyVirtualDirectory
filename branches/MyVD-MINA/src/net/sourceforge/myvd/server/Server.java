@@ -168,7 +168,7 @@ public class Server {
 		if (! portString.equals("")) {
 			logger.debug("Starting server on port : " + portString);
 			
-			LdapProtocolProvider protocolProvider = new LdapProtocolProvider(this.globalChain,this.router);
+			LdapProtocolProvider protocolProvider = new LdapProtocolProvider(this.globalChain,this.router,this.props.getProperty("server.binaryAttribs","userPassword"));
 			
 //			 Disable the disconnection of the clients on unbind
             SocketAcceptorConfig acceptorCfg = new SocketAcceptorConfig();

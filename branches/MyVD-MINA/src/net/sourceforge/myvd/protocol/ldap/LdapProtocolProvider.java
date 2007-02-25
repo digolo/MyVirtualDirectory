@@ -174,7 +174,7 @@ public class LdapProtocolProvider
      * @param env environment properties used to configure the provider and
      * underlying codec providers if any
      */
-    public LdapProtocolProvider( Insert[] globalChain,Router router ) throws LdapNamingException
+    public LdapProtocolProvider( Insert[] globalChain,Router router,String binaryAttribs ) throws LdapNamingException
     {
         
 
@@ -207,7 +207,10 @@ public class LdapProtocolProvider
             }
         }
 
-        this.codecFactory = new ProtocolCodecFactoryImpl( new Hashtable() );
+        
+        Hashtable env = new Hashtable();
+        env.put(MessageDecoder.BINARY_KEY, binaryAttribs);
+        this.codecFactory = new ProtocolCodecFactoryImpl( env );
     }
     
     /*
@@ -304,14 +307,14 @@ public class LdapProtocolProvider
 
         public ProtocolCodecFactoryImpl()
         {
-        	logger.debug("Not Given Env");
+        	//logger.debug("Not Given Env");
         	this.env = null;
         }
 
 
         ProtocolCodecFactoryImpl(Hashtable env)
         {
-            logger.debug("Given Env : " + env);
+            //logger.debug("Given Env : " + env);
         	this.env = env;
         }
 
@@ -324,7 +327,7 @@ public class LdapProtocolProvider
 
         public ProtocolDecoder getDecoder()
         {
-            logger.debug("Env : " + env	);
+            
         	return new Asn1CodecDecoder( new MessageDecoder( env ) );
         }
     }
