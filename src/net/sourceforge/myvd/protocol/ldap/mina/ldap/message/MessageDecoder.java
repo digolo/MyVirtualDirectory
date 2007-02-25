@@ -51,7 +51,7 @@ public final class MessageDecoder implements ProviderDecoder
 {
     private static final Logger log = LoggerFactory.getLogger( MessageDecoder.class );
 
-    private static final String BINARY_KEY = "java.naming.ldap.attributes.binary";
+    public static final String BINARY_KEY = "java.naming.ldap.attributes.binary";
 
     /** Environment parameters stored here */
     private final Hashtable env;

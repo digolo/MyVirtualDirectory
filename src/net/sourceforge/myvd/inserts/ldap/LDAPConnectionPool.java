@@ -105,8 +105,24 @@ public class LDAPConnectionPool {
 					continue;
 				}
 				
+				/*
+				if (wrapper == null) {
+					System.out.println("wrapper is null");
+				}
 				
+				if (bindDN == null) {
+					System.out.println("bindDN is null");
+				}
 				
+				if (wrapper.getBindDN() == null) {
+					System.out.println("wrapper.getBindDN is null");
+				}
+				
+				if (bindDN.toString() == null) {
+					System.out.println("bindDN.toString() is null");
+				}*/
+				
+				//System.out.println("?" + wrapper.getBindDN().toString());
 				
 				if (wrapper.getBindDN() != null && bindDN.toString().equals(wrapper.getBindDN().toString())) {
 					return wrapper;
@@ -147,7 +163,7 @@ public class LDAPConnectionPool {
 	private synchronized void waitForConnection() {
 		
 		try {
-			this.wait(1000);
+			this.wait(10000);
 		} catch (InterruptedException e) {
 			//dont care
 		}
@@ -155,6 +171,8 @@ public class LDAPConnectionPool {
 	
 	public synchronized void returnConnection(ConnectionWrapper con) {
 		con.unlock();
-		this.notifyAll();
+		synchronized (this) {
+			this.notifyAll();
+		}
 	}
 }
