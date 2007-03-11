@@ -1,0 +1,129 @@
+version: 1
+
+dn: o=bandit
+objectClass: organization
+objectClass: top
+o: bandit
+
+dn: cn=contributors,o=bandit
+cn: contributors
+equivalentToMe: cn=tdoman,ou=people,o=bandit
+equivalentToMe: cn=jimse,ou=people,o=bandit
+equivalentToMe: cn=dbuss,ou=people,o=bandit
+equivalentToMe: cn=pfelsted,ou=people,o=bandit
+equivalentToMe: cn=dolds,ou=people,o=bandit
+equivalentToMe: cn=baber,ou=people,o=bandit
+equivalentToMe: cn=jluciani,ou=people,o=bandit
+member: cn=tdoman,ou=people,o=bandit
+member: cn=jimse,ou=people,o=bandit
+member: cn=dbuss,ou=people,o=bandit
+member: cn=pfelsted,ou=people,o=bandit
+member: cn=dolds,ou=people,o=bandit
+member: cn=baber,ou=people,o=bandit
+member: cn=jluciani,ou=people,o=bandit
+objectclass: top
+objectclass: groupOfNames
+cn: administrators
+
+dn: uid=mikemci,o=bandit
+givenName: Michael
+sn: McIntosh
+cn: Michael McIntosh
+userPassword: secret
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+uid: mikemci
+
+dn: ou=resources,o=bandit
+ou: resources
+objectclass: top
+objectclass: organizationalUnit
+
+dn: cn=printer1,ou=resources,o=bandit
+owner: cn=admin,o=bandit
+objectclass: top
+objectclass: device
+cn: printer1
+
+dn: ou=people,o=bandit
+ou: people
+objectclass: top
+objectclass: organizationalUnit
+
+dn: cn=dolds,ou=people,o=bandit
+userPassword:: YmFuZGl0
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+cn: dolds
+sn: dolds
+
+dn: cn=dbuss,ou=people,o=bandit
+userPassword:: YmFuZGl0
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+cn: dbuss
+sn: dbuss
+
+dn: cn=pfelsted,ou=people,o=bandit
+userPassword:: YmFuZGl0
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+cn: pfelsted
+sn: pfelsted
+
+dn: cn=jluciani,ou=people,o=bandit
+userPassword:: YmFuZGl0
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+cn: jluciani
+sn: jluciani
+
+dn: cn=jimse,ou=people,o=bandit
+givenName: Jim
+sn: Sermersheim
+telephoneNumber: +1 801 555-5555
+userPassword:: YmFuZGl0
+mail: jimse@bandit-project.org
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+postalAddress: 1800 South Novell Place$Provo$UT$84606
+title: the dude
+cn: jimse
+
+dn: cn=tdoman,ou=people,o=bandit
+givenName: Tom
+sn: Doman
+userPassword:: YmFuZGl0
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+cn: tdoman
+
+dn: cn=baber,ou=people,o=bandit
+userPassword:: YmFuZGl0
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+cn: baber
+
+
+dn: cn=administrators,o=bandit
+equivalentToMe: cn=admin,o=bandit
+equivalentToMe: cn=tdoman,ou=people,o=bandit
+equivalentToMe: cn=jimse,ou=people,o=bandit
+equivalentToMe: cn=dbuss,ou=people,o=bandit
+member: cn=admin,o=bandit
+member: cn=tdoman,ou=people,o=bandit
+member: cn=jimse,ou=people,o=bandit
+member: cn=dbuss,ou=people,o=bandit
+objectclass: top
+objectclass: groupOfNames
+cn: administrators
+

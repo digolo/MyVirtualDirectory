@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Q1:myvd-higgins xmlns:Q1="http://myvd.sourceforge.net/myvd-higgins-config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="xml/myvd-higgins-config.xsd">
+  <Q1:config-file>test/testconfig.props</Q1:config-file>
+  <Q1:user-search-base>o=bandit</Q1:user-search-base>
+  <Q1:user-id-attribute>uid</Q1:user-id-attribute>
+</Q1:myvd-higgins>

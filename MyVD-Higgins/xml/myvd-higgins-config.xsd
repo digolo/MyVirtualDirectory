@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema" targetNamespace="http://myvd.sourceforge.net/myvd-higgins-config" xmlns:tns="http://www.example.org/myvd-higgins-config" elementFormDefault="qualified" xmlns:Q1="http://myvd.sourceforge.net/myvd-higgins-config">
+    
+
+    <element name="myvd-higgins" type="Q1:MyVDHigginsConfig"></element>
+    
+    <complexType name="MyVDHigginsConfig">
+
+    	<sequence>
+    		<element name="config-file" type="string"></element>
+    		<element name="user-search-base" type="string"></element>
+    		<element name="user-id-attribute" type="string"></element>
+    	</sequence>
+    </complexType>
+</schema>
