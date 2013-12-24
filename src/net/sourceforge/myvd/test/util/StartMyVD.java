@@ -34,7 +34,7 @@ public class StartMyVD {
 	Server server;
 	int port;
 	
-	public void stopServer() {
+	public void stopServer() throws Exception {
 		if (this.server != null) {
 			this.server.stopServer();
 		}
