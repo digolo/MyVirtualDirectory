@@ -33,7 +33,7 @@ import net.sourceforge.myvd.core.NameSpace;
 import net.sourceforge.myvd.inserts.Insert;
 import net.sourceforge.myvd.inserts.extensions.PasswordChangeOperation;
 import net.sourceforge.myvd.inserts.ldap.LDAPInterceptor;
-import net.sourceforge.myvd.protocol.ldap.LdapProtocolProvider;
+
 import net.sourceforge.myvd.router.Router;
 import net.sourceforge.myvd.server.Server;
 import net.sourceforge.myvd.test.chain.TestChain;
@@ -53,7 +53,7 @@ import net.sourceforge.myvd.types.Result;
 import net.sourceforge.myvd.types.Results;
 import net.sourceforge.myvd.types.SessionVariables;
 
-import org.apache.mina.common.TransportType;
+
 
 
 import com.novell.ldap.LDAPAttribute;
@@ -163,7 +163,7 @@ public class TestStartServer extends TestCase {
 		LDAPConnection con = new LDAPConnection();
 		con.connect("127.0.0.1",50983);
 		//con.bind(3,"cn=admin,o=mycompany","manager".getBytes());
-		LDAPSearchResults res = con.search("o=mycompany",2,"(objectClass=inetOrgPerson)",new String[]{"1.1"},false);
+		LDAPSearchResults res = con.search("o=mycompany,c=us",2,"(objectClass=inetOrgPerson)",new String[]{"1.1"},false);
 		
 		
 		
@@ -177,7 +177,10 @@ public class TestStartServer extends TestCase {
 		int size = 0;
 		
 			while (res.hasMore()) {
+				
 				LDAPEntry fromDir = res.next();
+				
+				
 				LDAPEntry controlEntry = null;//control.get(fromDir.getEntry().getDN());
 				
 				if (size == 0) {

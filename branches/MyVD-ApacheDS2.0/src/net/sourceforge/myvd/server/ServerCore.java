@@ -39,6 +39,8 @@ public class ServerCore {
 	Properties props;
 	private InsertChain globalChain;
 	private Router router;
+	
+	private ArrayList<String> namespaces;
 
 	private NameSpace globalNS;
 	
@@ -104,16 +106,23 @@ public class ServerCore {
 		String nss = props.getProperty("server.nameSpaces");
 		StringTokenizer toker = new StringTokenizer(nss,",");
 		Router router = new Router(this.globalChain);
+		
+		this.namespaces = new ArrayList<String>();
+		
 		while (toker.hasMoreTokens()) {
 			
 			
 			String nsName = toker.nextToken();
+			
+			
 			
 			logger.debug("Loading namespace : " + nsName);
 			
 			String prefix = "server." + nsName + ".";
 			int weight = Integer.parseInt(props.getProperty(prefix + "weight","0"));
 			String nsBase = props.getProperty(prefix + "nameSpace");
+			
+			this.namespaces.add(nsBase);
 			
 			String nsChain = props.getProperty(prefix + "chain");
 			StringTokenizer chainToker = new StringTokenizer(nsChain,",");
@@ -157,5 +166,9 @@ public class ServerCore {
 			SchemaUtil.getSchemaUtil().addBinaryAttribute(toker.nextToken().toLowerCase());
 		}
 		
+	}
+	
+	public ArrayList<String> getNamespaces() {
+		return this.namespaces;
 	}
 }
