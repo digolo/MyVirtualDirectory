@@ -74,8 +74,10 @@ public class MyVDPartition extends AbstractPartition {
 		HashMap<Object,Object> userRequest = new HashMap<Object,Object>();
 		
 		//how to track?
-		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
-		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		HashMap<Object,Object> userSession = add.getSession().getUserSession();
+		if (userSession.get(SessionVariables.BOUND_INTERCEPTORS) == null) {
+			userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		}
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -130,8 +132,10 @@ public class MyVDPartition extends AbstractPartition {
 		HashMap<Object,Object> userRequest = new HashMap<Object,Object>();
 		
 		//how to track?
-		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
-		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		HashMap<Object,Object> userSession = del.getSession().getUserSession();
+		if (userSession.get(SessionVariables.BOUND_INTERCEPTORS) == null) {
+			userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		}
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -194,8 +198,10 @@ public class MyVDPartition extends AbstractPartition {
 		HashMap<Object,Object> userRequest = new HashMap<Object,Object>();
 		
 		//how to track?
-		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
-		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		HashMap<Object,Object> userSession = has.getSession().getUserSession();
+		if (userSession.get(SessionVariables.BOUND_INTERCEPTORS) == null) {
+			userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		}
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -250,8 +256,10 @@ public class MyVDPartition extends AbstractPartition {
 		HashMap<Object,Object> userRequest = new HashMap<Object,Object>();
 		
 		//how to track?
-		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
-		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		HashMap<Object,Object> userSession = lookup.getSession().getUserSession();
+		if (userSession.get(SessionVariables.BOUND_INTERCEPTORS) == null) {
+			userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		}
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -314,8 +322,10 @@ public class MyVDPartition extends AbstractPartition {
 		HashMap<Object,Object> userRequest = new HashMap<Object,Object>();
 		
 		//how to track?
-		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
-		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		HashMap<Object,Object> userSession = mod.getSession().getUserSession();
+		if (userSession.get(SessionVariables.BOUND_INTERCEPTORS) == null) {
+			userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		}
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -357,8 +367,10 @@ public class MyVDPartition extends AbstractPartition {
 		HashMap<Object,Object> userRequest = new HashMap<Object,Object>();
 		
 		//how to track?
-		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
-		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		HashMap<Object,Object> userSession = move.getSession().getUserSession();
+		if (userSession.get(SessionVariables.BOUND_INTERCEPTORS) == null) {
+			userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		}
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -396,8 +408,10 @@ public class MyVDPartition extends AbstractPartition {
 		HashMap<Object,Object> userRequest = new HashMap<Object,Object>();
 		
 		//how to track?
-		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
-		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		HashMap<Object,Object> userSession = move.getSession().getUserSession();
+		if (userSession.get(SessionVariables.BOUND_INTERCEPTORS) == null) {
+			userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		}
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -434,8 +448,10 @@ public class MyVDPartition extends AbstractPartition {
 		HashMap<Object,Object> userRequest = new HashMap<Object,Object>();
 		
 		//how to track?
-		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
-		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		HashMap<Object,Object> userSession = move.getSession().getUserSession();
+		if (userSession.get(SessionVariables.BOUND_INTERCEPTORS) == null) {
+			userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		}
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -475,8 +491,10 @@ public class MyVDPartition extends AbstractPartition {
 		HashMap<Object,Object> userRequest = new HashMap<Object,Object>();
 		
 		//how to track?
-		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
-		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		HashMap<Object,Object> userSession = search.getSession().getUserSession();
+		if (userSession.get(SessionVariables.BOUND_INTERCEPTORS) == null) {
+			userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
+		}
 		
 		DistinguishedName bindDN;
 		byte[] password;
