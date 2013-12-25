@@ -4,10 +4,14 @@ import net.sourceforge.myvd.types.Results;
 
 import org.apache.directory.api.ldap.model.cursor.AbstractCursor;
 import org.apache.directory.api.ldap.model.cursor.CursorException;
+import org.apache.directory.api.ldap.model.entry.Attribute;
+import org.apache.directory.api.ldap.model.entry.DefaultAttribute;
 import org.apache.directory.api.ldap.model.entry.DefaultEntry;
 import org.apache.directory.api.ldap.model.entry.Entry;
 import org.apache.directory.api.ldap.model.exception.LdapException;
 import org.apache.directory.api.ldap.model.exception.LdapInvalidDnException;
+import org.apache.directory.api.ldap.model.exception.LdapNoSuchAttributeException;
+import org.apache.directory.api.ldap.model.schema.AttributeType;
 
 import com.novell.ldap.LDAPAttribute;
 import com.novell.ldap.LDAPAttributeSet;
@@ -17,24 +21,26 @@ import com.novell.ldap.LDAPException;
 public class MyVDCursor extends AbstractCursor<Entry> {
 
 	
-	
+	MyVDPartition partition;
 	private Results res;
 	LdapException le;
 	boolean first;
 	
 	net.sourceforge.myvd.types.Entry buffer;
 
-	public MyVDCursor(Results res) {
+	public MyVDCursor(Results res,MyVDPartition partition) {
 		this.res = res;
 		le = null;
 		first = true;
 		buffer = null;
+		this.partition = partition;
+		
 	}
 	
 	@Override
 	public void after(Entry arg0) throws LdapException, CursorException {
 		//Do nothing
-		
+		System.out.println();
 	}
 
 	@Override
@@ -65,13 +71,13 @@ public class MyVDCursor extends AbstractCursor<Entry> {
 
 	@Override
 	public void before(Entry arg0) throws LdapException, CursorException {
-		//do nothing
+		System.out.println();
 		
 	}
 
 	@Override
 	public void beforeFirst() throws LdapException, CursorException {
-		//do nothing
+		System.out.println();
 		
 	}
 
@@ -99,10 +105,19 @@ public class MyVDCursor extends AbstractCursor<Entry> {
 			LDAPAttributeSet attrs = nentry.getAttributeSet();
 			for (Object o : attrs) {
 				LDAPAttribute a = (LDAPAttribute) o;
+				String oid = "";
+				
+				AttributeType at;
+				
+				
+				
+				
+				
 				byte[][] vals = a.getByteValueArray();
-				for (int i=0;i<vals.length;i++) {
-					entry.add(a.getName(),vals[i]);
-				}
+				DefaultAttribute attr = new DefaultAttribute(a.getName());
+				attr.add(vals);
+				entry.add(attr);
+				
 			}
 			
 			return entry;
@@ -110,6 +125,20 @@ public class MyVDCursor extends AbstractCursor<Entry> {
 			throw new CursorException(e);
 		} 
 		
+	}
+
+	private String generateRandomOID() {
+		String base ="9.8.7.6.5.";
+		int num = (int) (Math.random() * 5000);
+		
+		StringBuffer b = new StringBuffer(base);
+		b.append(num);
+		
+		if (this.partition.getSchemaManager().getAttributeType(b.toString()) == null ) {
+			return b.toString();
+		} else {
+			return generateRandomOID();
+		}
 	}
 
 	@Override
