@@ -43,6 +43,8 @@ public class ServerCore {
 	private ArrayList<String> namespaces;
 
 	private NameSpace globalNS;
+
+	private boolean strictNamespaces;
 	
 	public ServerCore(Properties props) {
 		this.props = props;
@@ -106,8 +108,8 @@ public class ServerCore {
 		String nss = props.getProperty("server.nameSpaces");
 		StringTokenizer toker = new StringTokenizer(nss,",");
 		Router router = new Router(this.globalChain);
+		ArrayList<String> lns = new ArrayList<String>();
 		
-		this.namespaces = new ArrayList<String>();
 		
 		while (toker.hasMoreTokens()) {
 			
@@ -122,7 +124,9 @@ public class ServerCore {
 			int weight = Integer.parseInt(props.getProperty(prefix + "weight","0"));
 			String nsBase = props.getProperty(prefix + "nameSpace");
 			
-			this.namespaces.add(nsBase);
+			if (! this.strictNamespaces) {
+				lns.add(nsBase);
+			}
 			
 			String nsChain = props.getProperty(prefix + "chain");
 			StringTokenizer chainToker = new StringTokenizer(nsChain,",");
@@ -145,6 +149,21 @@ public class ServerCore {
 			router.addBackend(nsName,new DN(nsBase),ns);
 		}
 		
+		
+		if (! this.strictNamespaces) {
+			
+			for (String base : lns) {
+				DN dn = new DN(base);
+	        	String top = dn.getRDNs().get(dn.getRDNs().size() - 1).toString();
+	        	if (! this.namespaces.contains(top)) {
+	        		this.namespaces.add(top);
+	        	}
+			}
+			
+			
+			
+		}
+		
 		this.router = router;
 	}
 	
@@ -165,6 +184,15 @@ public class ServerCore {
 		while (toker.hasMoreTokens()) {
 			SchemaUtil.getSchemaUtil().addBinaryAttribute(toker.nextToken().toLowerCase());
 		}
+		
+		this.namespaces = new ArrayList<String>();
+		int numRootNamespaces = Integer.parseInt(props.getProperty("server.numRootNameSpaces","0"));
+		for (int i=0;i<numRootNamespaces;i++) {
+			String ns = props.getProperty("server.rootNameSpaces." + i);
+			this.namespaces.add(ns);
+		}
+		
+		this.strictNamespaces = Boolean.parseBoolean(props.getProperty("server.rootNameSpacesStrict","true"));
 		
 	}
 	

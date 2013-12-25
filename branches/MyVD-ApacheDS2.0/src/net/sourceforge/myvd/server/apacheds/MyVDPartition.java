@@ -5,6 +5,8 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import javax.naming.InvalidNameException;
+
 import net.sourceforge.myvd.chain.AddInterceptorChain;
 import net.sourceforge.myvd.chain.DeleteInterceptorChain;
 import net.sourceforge.myvd.chain.ModifyInterceptorChain;
@@ -18,6 +20,7 @@ import net.sourceforge.myvd.types.Filter;
 import net.sourceforge.myvd.types.Int;
 import net.sourceforge.myvd.types.Password;
 import net.sourceforge.myvd.types.Results;
+import net.sourceforge.myvd.types.SessionVariables;
 
 import org.apache.directory.api.ldap.model.entry.Attribute;
 import org.apache.directory.api.ldap.model.entry.DefaultEntry;
@@ -27,6 +30,7 @@ import org.apache.directory.api.ldap.model.exception.LdapException;
 import org.apache.directory.api.ldap.model.exception.LdapInvalidDnException;
 import org.apache.directory.api.ldap.model.message.ResultCodeEnum;
 import org.apache.directory.api.ldap.model.name.Dn;
+import org.apache.directory.api.ldap.model.name.Rdn;
 import org.apache.directory.api.ldap.model.schema.SchemaManager;
 import org.apache.directory.server.core.api.CacheService;
 import org.apache.directory.server.core.api.LdapPrincipal;
@@ -42,6 +46,7 @@ import org.apache.directory.server.core.api.interceptor.context.MoveOperationCon
 import org.apache.directory.server.core.api.interceptor.context.RenameOperationContext;
 import org.apache.directory.server.core.api.interceptor.context.SearchOperationContext;
 import org.apache.directory.server.core.api.interceptor.context.UnbindOperationContext;
+import org.apache.directory.server.core.api.partition.AbstractPartition;
 import org.apache.directory.server.core.api.partition.Partition;
 
 import com.novell.ldap.LDAPAttribute;
@@ -53,14 +58,11 @@ import com.novell.ldap.LDAPModification;
 import com.novell.ldap.LDAPSearchConstraints;
 import com.novell.ldap.util.DN;
 
-public class MyVDPartition implements Partition {
+public class MyVDPartition extends AbstractPartition {
 
 	InsertChain globalChain;
 	Router router;
-	private String id;
-	private SchemaManager schemaManager;
-	private Dn suffixDn;
-	private CacheService cacheService;
+	
 	
 	public MyVDPartition(InsertChain globalChain,Router router) {
 		this.globalChain = globalChain;
@@ -73,6 +75,7 @@ public class MyVDPartition implements Partition {
 		
 		//how to track?
 		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
+		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -82,7 +85,11 @@ public class MyVDPartition implements Partition {
 			password = null;
 		} else {
 			bindDN = new DistinguishedName(add.getSession().getAuthenticatedPrincipal().getDn().getName());
-			password = add.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			if (add.getSession().getAuthenticatedPrincipal().getUserPasswords() != null) {
+				password = add.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			} else {
+				password = null;
+			}
 		}
 		
 		Password pass = new Password(password);
@@ -124,6 +131,7 @@ public class MyVDPartition implements Partition {
 		
 		//how to track?
 		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
+		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -133,7 +141,11 @@ public class MyVDPartition implements Partition {
 			password = null;
 		} else {
 			bindDN = new DistinguishedName(del.getSession().getAuthenticatedPrincipal().getDn().getName());
-			password = del.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			if (del.getSession().getAuthenticatedPrincipal().getUserPasswords() != null) {
+				password = del.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			} else {
+				password = null;
+			}
 		}
 		
 		Password pass = new Password(password);
@@ -175,32 +187,7 @@ public class MyVDPartition implements Partition {
 		return entry;
 	}
 
-	@Override
-	public void destroy() throws Exception {
-		// TODO Auto-generated method stub
-		
-	}
 
-	@Override
-	public void dumpIndex(OutputStream arg0, String arg1) throws IOException {
-		
-		
-	}
-
-	@Override
-	public String getId() {
-		return this.id;
-	}
-
-	@Override
-	public SchemaManager getSchemaManager() {
-		return this.schemaManager;
-	}
-
-	@Override
-	public Dn getSuffixDn() {
-		return this.suffixDn;
-	}
 
 	@Override
 	public boolean hasEntry(HasEntryOperationContext has) throws LdapException {
@@ -208,6 +195,7 @@ public class MyVDPartition implements Partition {
 		
 		//how to track?
 		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
+		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -217,7 +205,11 @@ public class MyVDPartition implements Partition {
 			password = null;
 		} else {
 			bindDN = new DistinguishedName(has.getSession().getAuthenticatedPrincipal().getDn().getName());
-			password = has.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			if (has.getSession().getAuthenticatedPrincipal().getUserPasswords() != null) {
+				password = has.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			} else {
+				password = null;
+			}
 		}
 		
 		Password pass = new Password(password);
@@ -251,17 +243,7 @@ public class MyVDPartition implements Partition {
 		}
 	}
 
-	@Override
-	public void initialize() throws LdapException {
-		
-		
-	}
-
-	@Override
-	public boolean isInitialized() {
-		
-		return true;
-	}
+	
 
 	@Override
 	public Entry lookup(LookupOperationContext lookup) throws LdapException {
@@ -269,6 +251,7 @@ public class MyVDPartition implements Partition {
 		
 		//how to track?
 		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
+		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -278,7 +261,11 @@ public class MyVDPartition implements Partition {
 			password = null;
 		} else {
 			bindDN = new DistinguishedName(lookup.getSession().getAuthenticatedPrincipal().getDn().getName());
-			password = lookup.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			if (lookup.getSession().getAuthenticatedPrincipal().getUserPasswords() != null) {
+				password = lookup.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			} else {
+				password = null;
+			}
 		}
 		
 		Password pass = new Password(password);
@@ -328,6 +315,7 @@ public class MyVDPartition implements Partition {
 		
 		//how to track?
 		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
+		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -337,7 +325,11 @@ public class MyVDPartition implements Partition {
 			password = null;
 		} else {
 			bindDN = new DistinguishedName(mod.getSession().getAuthenticatedPrincipal().getDn().getName());
-			password = mod.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			if (mod.getSession().getAuthenticatedPrincipal().getUserPasswords() != null) {
+				password = mod.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			} else {
+				password = null;
+			}
 		}
 		
 		Password pass = new Password(password);
@@ -366,6 +358,7 @@ public class MyVDPartition implements Partition {
 		
 		//how to track?
 		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
+		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -375,7 +368,11 @@ public class MyVDPartition implements Partition {
 			password = null;
 		} else {
 			bindDN = new DistinguishedName(move.getSession().getAuthenticatedPrincipal().getDn().getName());
-			password = move.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			if (move.getSession().getAuthenticatedPrincipal().getUserPasswords() != null) {
+				password = move.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			} else {
+				password = null;
+			}
 		}
 		
 		Password pass = new Password(password);
@@ -400,6 +397,7 @@ public class MyVDPartition implements Partition {
 		
 		//how to track?
 		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
+		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -409,7 +407,11 @@ public class MyVDPartition implements Partition {
 			password = null;
 		} else {
 			bindDN = new DistinguishedName(move.getSession().getAuthenticatedPrincipal().getDn().getName());
-			password = move.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			if (move.getSession().getAuthenticatedPrincipal().getUserPasswords() != null) {
+				password = move.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			} else {
+				password = null;
+			}
 		}
 		
 		Password pass = new Password(password);
@@ -433,6 +435,7 @@ public class MyVDPartition implements Partition {
 		
 		//how to track?
 		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
+		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -442,7 +445,11 @@ public class MyVDPartition implements Partition {
 			password = null;
 		} else {
 			bindDN = new DistinguishedName(move.getSession().getAuthenticatedPrincipal().getDn().getName());
-			password = move.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			if (move.getSession().getAuthenticatedPrincipal().getUserPasswords() != null) {
+				password = move.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			} else {
+				password = null;
+			}
 		}
 		
 		Password pass = new Password(password);
@@ -469,6 +476,7 @@ public class MyVDPartition implements Partition {
 		
 		//how to track?
 		HashMap<Object,Object> userSession = new HashMap<Object,Object>();
+		userSession.put(SessionVariables.BOUND_INTERCEPTORS,new ArrayList<String>());
 		
 		DistinguishedName bindDN;
 		byte[] password;
@@ -478,7 +486,11 @@ public class MyVDPartition implements Partition {
 			password = null;
 		} else {
 			bindDN = new DistinguishedName(search.getSession().getAuthenticatedPrincipal().getDn().getName());
-			password = search.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			if (search.getSession().getAuthenticatedPrincipal().getUserPasswords() != null) {
+				password = search.getSession().getAuthenticatedPrincipal().getUserPasswords()[0];
+			} else {
+				password = null;
+			}
 		}
 		
 		Password pass = new Password(password);
@@ -493,49 +505,32 @@ public class MyVDPartition implements Partition {
 			attrs.add(new net.sourceforge.myvd.types.Attribute(attrName));
 		}
 		
+		StringBuffer sb = new StringBuffer();
+		
+		
+		for (Rdn rdn : search.getDn().getRdns()) {
+			sb.append(rdn.getAva().getAttributeType().getNames().get(0)).append('=').append(rdn.getValue().getString()).append(',');
+		}
+		
+		sb.setLength(sb.length() - 1);
+		
+		
 		try {
-			chain.nextSearch(new DistinguishedName(search.getDn().getName()), new Int(search.getScope().getScope()), new Filter(search.getFilter().toString()), attrs, new Bool(search.isTypesOnly()), res, new LDAPSearchConstraints());
+			chain.nextSearch(new DistinguishedName(sb.toString()), new Int(search.getScope().getScope()), new Filter(search.getFilter().toString()), attrs, new Bool(search.isTypesOnly()), res, new LDAPSearchConstraints());
+			res.start();
 		} catch (LDAPException e) {
 			throw this.generateException(e);
 		}
 		
-		return new BaseEntryFilteringCursor(new MyVDCursor(res),search,this.getSchemaManager());
+		return new MyVDBaseCursor(new MyVDCursor(res,this),search,this.getSchemaManager());
 	}
 
-	@Override
-	public void setCacheService(CacheService cacheService) {
-		this.cacheService = cacheService;
-		
-	}
-
-	@Override
-	public void setId(String id) {
-		this.id = id;
-		
-	}
-
-	@Override
-	public void setSchemaManager(SchemaManager schemaManager) {
-		this.schemaManager = schemaManager;
-		
-	}
-
-	@Override
-	public void setSuffixDn(Dn suffixDn) throws LdapInvalidDnException {
-		this.suffixDn = suffixDn;
-		
-	}
-
-	@Override
-	public void sync() throws Exception {
-		
-		
-	}
+	
 
 	@Override
 	public void unbind(UnbindOperationContext arg0) throws LdapException {
 		// TODO Auto-generated method stub
-		
+		System.out.println("");
 	}
 	
 	public static LdapException generateException(LDAPException e) {
@@ -582,6 +577,24 @@ public class MyVDPartition implements Partition {
 		
 		ex.setStackTrace(e.getStackTrace());
 		return ex;
+	}
+
+	@Override
+	public void sync() throws Exception {
+		
+		
+	}
+
+	@Override
+	protected void doDestroy() throws Exception {
+		
+		
+	}
+
+	@Override
+	protected void doInit() throws InvalidNameException, Exception {
+		
+		
 	}
 
 }

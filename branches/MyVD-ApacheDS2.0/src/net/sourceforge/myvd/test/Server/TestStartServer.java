@@ -163,7 +163,7 @@ public class TestStartServer extends TestCase {
 		LDAPConnection con = new LDAPConnection();
 		con.connect("127.0.0.1",50983);
 		//con.bind(3,"cn=admin,o=mycompany","manager".getBytes());
-		LDAPSearchResults res = con.search("o=mycompany,c=us",2,"(objectClass=inetOrgPerson)",new String[]{"1.1"},false);
+		LDAPSearchResults res = con.search("o=mycompany",2,"(objectClass=inetOrgPerson)",new String[]{"1.1"},false);
 		
 		
 		

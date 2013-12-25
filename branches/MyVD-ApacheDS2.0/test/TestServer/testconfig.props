@@ -1,4 +1,9 @@
 server.listener.port=50983
+
+server.numRootNameSpaces=1
+server.rootNameSpaces.0=o=mycompany
+server.rootNameSpacesStrict=false
+
 server.globalChain=testGlobalChain,passwordChange
 
 #Test global

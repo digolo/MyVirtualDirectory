@@ -58,6 +58,7 @@ import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.api.ldap.model.name.Dn;
 import org.apache.directory.api.ldap.model.schema.AttributeType;
 import org.apache.directory.api.ldap.model.schema.AttributeTypeOptions;
+import org.apache.directory.api.ldap.model.schema.SchemaManager;
 import org.apache.directory.api.ldap.model.schema.registries.SchemaLoader;
 import org.apache.directory.api.ldap.model.schema.syntaxCheckers.CsnSyntaxChecker;
 import org.apache.directory.api.ldap.model.schema.syntaxCheckers.GeneralizedTimeSyntaxChecker;
@@ -73,6 +74,7 @@ import org.apache.directory.server.config.LdifConfigExtractor;
 import org.apache.directory.server.config.beans.ConfigBean;
 import org.apache.directory.server.config.beans.DirectoryServiceBean;
 import org.apache.directory.server.config.builder.ServiceBuilder;
+import org.apache.directory.server.constants.ServerDNConstants;
 import org.apache.directory.server.core.DefaultDirectoryService;
 import org.apache.directory.server.core.api.CacheService;
 import org.apache.directory.server.core.api.CoreSession;
@@ -82,10 +84,12 @@ import org.apache.directory.server.core.api.filtering.EntryFilteringCursor;
 import org.apache.directory.server.core.api.interceptor.context.ModifyOperationContext;
 import org.apache.directory.server.core.api.partition.Partition;
 import org.apache.directory.server.core.api.schema.SchemaPartition;
+import org.apache.directory.server.core.partition.impl.btree.jdbm.JdbmPartition;
 import org.apache.directory.server.core.partition.ldif.LdifPartition;
 import org.apache.directory.server.core.partition.ldif.SingleFileLdifPartition;
 import org.apache.directory.server.ldap.LdapServer;
 import org.apache.directory.server.protocol.shared.transport.TcpTransport;
+import org.apache.directory.server.i18n.I18n;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 import org.apache.mina.filter.codec.ProtocolCodecFilter;
@@ -171,6 +175,98 @@ public class Server {
 		
 	}
 	
+	
+	
+    /**
+     * initialize the schema manager and add the schema partition to diectory service
+     *
+     * @throws Exception if the schema LDIF files are not found on the classpath
+     */
+    private void initSchemaPartition() throws Exception
+    {
+        InstanceLayout instanceLayout = directoryService.getInstanceLayout();
+        
+        File schemaPartitionDirectory = new File( instanceLayout.getPartitionsDirectory(), "schema" );
+
+        // Extract the schema on disk (a brand new one) and load the registries
+        if ( schemaPartitionDirectory.exists() )
+        {
+            System.out.println( "schema partition already exists, skipping schema extraction" );
+        }
+        else
+        {
+            SchemaLdifExtractor extractor = new DefaultSchemaLdifExtractor( instanceLayout.getPartitionsDirectory() );
+            extractor.extractOrCopy();
+        }
+
+        SchemaLoader loader = new LdifSchemaLoader( schemaPartitionDirectory );
+        SchemaManager schemaManager = new DefaultSchemaManager( loader );
+
+        // We have to load the schema now, otherwise we won't be able
+        // to initialize the Partitions, as we won't be able to parse
+        // and normalize their suffix Dn
+        schemaManager.loadAllEnabled();
+
+        List<Throwable> errors = schemaManager.getErrors();
+
+        if ( errors.size() != 0 )
+        {
+            throw new Exception( I18n.err( I18n.ERR_317, Exceptions.printErrors( errors ) ) );
+        }
+
+        directoryService.setSchemaManager( schemaManager );
+        
+        // Init the LdifPartition with schema
+        LdifPartition schemaLdifPartition = new LdifPartition( schemaManager );
+        schemaLdifPartition.setPartitionPath( schemaPartitionDirectory.toURI() );
+
+        // The schema partition
+        SchemaPartition schemaPartition = new SchemaPartition( schemaManager );
+        schemaPartition.setWrappedPartition( schemaLdifPartition );
+        directoryService.setSchemaPartition( schemaPartition );
+    }
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	public void startServer() throws Exception {
 		String portString;
 		
@@ -187,27 +283,55 @@ public class Server {
 		this.globalChain = serverCore.getGlobalChain();
 		this.router = serverCore.getRouter();
 		
-		/*this.directoryService = new DefaultDirectoryService();
+		this.directoryService = new DefaultDirectoryService();
         directoryService.setShutdownHookEnabled(false);
         directoryService.setAccessControlEnabled(false);
         directoryService.setAllowAnonymousAccess(true);
         directoryService.setInstanceLayout(new InstanceLayout(new File("/tmp/test")));
         
-        this.initSchemaManager(directoryService.getInstanceLayout());
-        this.initSchemaLdifPartition(directoryService.getInstanceLayout());
-        
- 
-        SchemaPartition schemaPartition = new SchemaPartition( schemaManager );
-        schemaPartition.setWrappedPartition( schemaLdifPartition );
-        directoryService.setSchemaPartition( schemaPartition );
-        
         CacheService cacheService = new CacheService();
         cacheService.initialize( directoryService.getInstanceLayout() );
+
+        directoryService.setCacheService( cacheService );
         
-        directoryService.setCacheService(cacheService);
-        */
-		
-		this.startApacheDS(new InstanceLayout(new File("/tmp/test")));
+        // first load the schema
+        initSchemaPartition();
+        
+     // then the system partition
+        // this is a MANDATORY partition
+        // DO NOT add this via addPartition() method, trunk code complains about duplicate partition
+        // while initializing 
+        JdbmPartition systemPartition = new JdbmPartition(directoryService.getSchemaManager());
+        systemPartition.setId( "system" );
+        systemPartition.setPartitionPath( new File( directoryService.getInstanceLayout().getPartitionsDirectory(), systemPartition.getId() ).toURI() );
+        systemPartition.setSuffixDn( new Dn( ServerDNConstants.SYSTEM_DN ) );
+        systemPartition.setSchemaManager( directoryService.getSchemaManager() );
+        
+        // mandatory to call this method to set the system partition
+        // Note: this system partition might be removed from trunk
+        directoryService.setSystemPartition( systemPartition );
+        
+        // Disable the ChangeLog system
+        directoryService.getChangeLog().setEnabled( false );
+        directoryService.setDenormalizeOpAttrsEnabled( true );
+        
+        
+        
+        int i = 0;
+        for (String top : serverCore.getNamespaces()) {
+        	MyVDPartition myvd = new MyVDPartition(this.globalChain,this.router);
+        	myvd.setId("myvd" + i);
+        	myvd.setSchemaManager(directoryService.getSchemaManager());
+        	myvd.setSuffixDn(new Dn(top));
+        	myvd.initialize();
+        	
+        	directoryService.addPartition(myvd);
+        	i++;
+        }
+        
+        
+        directoryService.startup();
+        
         
         
         
@@ -260,11 +384,11 @@ public class Server {
 
 	private static void getDefaultLog() {
 		Properties props = new Properties();
-		props.put("log4j.rootLogger", "info,console");
+		props.put("log4j.rootLogger", "debug,console");
 		
-		//props.put("log4j.appender.console","org.apache.log4j.RollingFileAppender");
-		//props.put("log4j.appender.console.File","/home/mlb/myvd.log");
-		props.put("log4j.appender.console","org.apache.log4j.ConsoleAppender");
+		props.put("log4j.appender.console","org.apache.log4j.RollingFileAppender");
+		props.put("log4j.appender.console.File","/home/mlb/myvd.log");
+		//props.put("log4j.appender.console","org.apache.log4j.ConsoleAppender");
 		props.put("log4j.appender.console.layout","org.apache.log4j.PatternLayout");
 		props.put("log4j.appender.console.layout.ConversionPattern","[%d][%t] %-5p %c{1} - %m%n");
 		
@@ -466,328 +590,5 @@ public class Server {
         
     }*/
 	
-	/**
-     * Initialize the schema Manager by loading the schema LDIF files
-     * 
-     * @param instanceLayout the instance layout
-     * @throws Exception in case of any problems while extracting and writing the schema files
-     */
-    private void initSchemaManager( InstanceLayout instanceLayout ) throws Exception
-    {
-        File schemaPartitionDirectory = new File( instanceLayout.getPartitionsDirectory(), "schema" );
-
-        // Extract the schema on disk (a brand new one) and load the registries
-        if ( schemaPartitionDirectory.exists() )
-        {
-            logger.info( "schema partition already exists, skipping schema extraction" );
-        }
-        else
-        {
-            SchemaLdifExtractor extractor = new DefaultSchemaLdifExtractor( instanceLayout.getPartitionsDirectory() );
-            extractor.extractOrCopy();
-            isSchemaPartitionFirstExtraction = true;
-        }
-
-        SchemaLoader loader = new LdifSchemaLoader( schemaPartitionDirectory );
-        schemaManager = new DefaultSchemaManager( loader );
-
-        // We have to load the schema now, otherwise we won't be able
-        // to initialize the Partitions, as we won't be able to parse
-        // and normalize their suffix Dn
-        schemaManager.loadAllEnabled();
-
-        List<Throwable> errors = schemaManager.getErrors();
-
-        if ( errors.size() != 0 )
-        {
-            throw new Exception(Exceptions.printErrors( errors ) ) ;
-        }
-    }
-
-
-    /**
-     * Initialize the schema partition
-     * 
-     * @param instanceLayout the instance layout
-     * @throws Exception in case of any problems while initializing the SchemaPartition
-     */
-    private void initSchemaLdifPartition( InstanceLayout instanceLayout ) throws Exception
-    {
-        File schemaPartitionDirectory = new File( instanceLayout.getPartitionsDirectory(), "schema" );
-
-        // Init the LdifPartition
-        schemaLdifPartition = new LdifPartition( schemaManager );
-        schemaLdifPartition.setPartitionPath( schemaPartitionDirectory.toURI() );
-    }
-    
-    /**
-     * starts various services configured according to the
-     * configuration present in the given instance's layout
-     *
-     * @param instanceLayout the on disk location's layout of the intance to be started
-     * @throws Exception
-     */
-    public void startApacheDS( InstanceLayout instanceLayout ) throws Exception
-    {
-        File partitionsDir = instanceLayout.getPartitionsDirectory();
-
-        if ( !partitionsDir.exists() )
-        {
-            logger.info( "partition directory doesn't exist, creating " + partitionsDir.getAbsolutePath() );
-
-            if ( !partitionsDir.mkdirs() )
-            {
-                throw new IOException( "Could not create directory : '" + partitionsDir + "'" );
-            }
-        }
-
-        logger.info( "using partition dir " + partitionsDir.getAbsolutePath() );
-
-        CacheService cacheService = new CacheService();
-        cacheService.initialize( instanceLayout );
-
-        initSchemaManager( instanceLayout );
-        initSchemaLdifPartition( instanceLayout );
-        initConfigPartition( instanceLayout, cacheService );
-
-        // Read the configuration
-        cpReader = new ConfigPartitionReader( configPartition );
-
-        ConfigBean configBean = cpReader.readConfig();
-
-        DirectoryServiceBean directoryServiceBean = configBean.getDirectoryServiceBean();
-
-        // Initialize the DirectoryService now
-        directoryService = (DefaultDirectoryService) initDirectoryService( instanceLayout, directoryServiceBean, cacheService );
-
-        
-    }
-    
-    /**
-     * 
-     * initializes a LDIF partition for configuration
-     * 
-     * @param instanceLayout the instance layout
-     * @param cacheService the Cache service
-     * @throws Exception in case of any issues while extracting the schema
-     */
-    private void initConfigPartition( InstanceLayout instanceLayout, CacheService cacheService ) throws Exception
-    {
-        File confFile = new File( instanceLayout.getConfDirectory(), LdifConfigExtractor.LDIF_CONFIG_FILE );
-
-        if ( confFile.exists() )
-        {
-            logger.info( "config partition already exists, skipping default config extraction" );
-        }
-        else
-        {
-            LdifConfigExtractor.extractSingleFileConfig( instanceLayout.getConfDirectory(),
-                LdifConfigExtractor.LDIF_CONFIG_FILE, true );
-            isConfigPartitionFirstExtraction = true;
-        }
-
-        configPartition = new SingleFileLdifPartition( schemaManager );
-        configPartition.setId( "config" );
-        configPartition.setPartitionPath( confFile.toURI() );
-        configPartition.setSuffixDn( new Dn( schemaManager, "ou=config" ) );
-        configPartition.setSchemaManager( schemaManager );
-        configPartition.setCacheService( cacheService );
-
-        configPartition.initialize();
-    }
-    
-    private DirectoryService initDirectoryService( InstanceLayout instanceLayout,
-            DirectoryServiceBean directoryServiceBean, CacheService cacheService ) throws Exception
-        {
-            logger.info( "Initializing the DirectoryService..." );
-
-            long startTime = System.currentTimeMillis();
-
-            directoryService = (DefaultDirectoryService) ServiceBuilder.createDirectoryService( directoryServiceBean,
-                instanceLayout, schemaManager );
-
-            // The schema partition
-            SchemaPartition schemaPartition = new SchemaPartition( schemaManager );
-            schemaPartition.setWrappedPartition( schemaLdifPartition );
-            directoryService.setSchemaPartition( schemaPartition );
-
-            directoryService.addPartition( configPartition );
-
-            // Store the default directories
-            directoryService.setInstanceLayout( instanceLayout );
-
-            directoryService.setCacheService( cacheService );
-
-            ArrayList<String> useBase = new ArrayList<String>();
-            for (String base : this.serverCore.getNamespaces()) {
-            	DN dn = new DN(base);
-            	String top = dn.getRDNs().get(dn.getRDNs().size() - 1).toString();
-            	if (! useBase.contains(top)) {
-            		useBase.add(top);
-            	}
-            }
-            
-            for (String top : useBase) {
-            	MyVDPartition myvd = new MyVDPartition(this.globalChain,this.router);
-            	myvd.setId("myvd-" + top);
-            	myvd.setSchemaManager(directoryService.getSchemaManager());
-            	myvd.setSuffixDn(new Dn(top));
-            	myvd.initialize();
-            	
-            	directoryService.addPartition(myvd);
-            }
-            
-            
-            directoryService.startup();
-
-            AttributeType ocAt = schemaManager.lookupAttributeTypeRegistry( SchemaConstants.OBJECT_CLASS_AT );
-            MANDATORY_ENTRY_ATOP_MAP.put( ocAt.getName(), new AttributeTypeOptions( ocAt ) );
-
-            AttributeType uuidAt = schemaManager.lookupAttributeTypeRegistry( SchemaConstants.ENTRY_UUID_AT );
-            MANDATORY_ENTRY_ATOP_MAP.put( uuidAt.getName(), new AttributeTypeOptions( uuidAt ) );
-
-            AttributeType csnAt = schemaManager.lookupAttributeTypeRegistry( SchemaConstants.ENTRY_CSN_AT );
-            MANDATORY_ENTRY_ATOP_MAP.put( csnAt.getName(), new AttributeTypeOptions( csnAt ) );
-
-            AttributeType creatorAt = schemaManager.lookupAttributeTypeRegistry( SchemaConstants.CREATORS_NAME_AT );
-            MANDATORY_ENTRY_ATOP_MAP.put( creatorAt.getName(), new AttributeTypeOptions( creatorAt ) );
-
-            AttributeType createdTimeAt = schemaManager.lookupAttributeTypeRegistry( SchemaConstants.CREATE_TIMESTAMP_AT );
-            MANDATORY_ENTRY_ATOP_MAP.put( createdTimeAt.getName(), new AttributeTypeOptions( createdTimeAt ) );
-
-            MANDATORY_ENTRY_ATOP_AT = new String[MANDATORY_ENTRY_ATOP_MAP.size()];
-
-            int pos = 0;
-
-            for ( AttributeTypeOptions attributeTypeOptions : MANDATORY_ENTRY_ATOP_MAP.values() )
-            {
-                MANDATORY_ENTRY_ATOP_AT[pos++] = attributeTypeOptions.getAttributeType().getName();
-            }
-
-            if ( isConfigPartitionFirstExtraction )
-            {
-                logger.info( "begining to update config partition LDIF files after modifying manadatory attributes" );
-
-                // disable writes to the disk upon every modification to improve performance
-                configPartition.setEnableRewriting( false );
-
-                // perform updates
-                updateMandatoryOpAttributes( configPartition, directoryService );
-
-                // enable writes to disk, this will save the partition data first if found dirty
-                configPartition.setEnableRewriting( true );
-
-                logger.info( "config partition data was successfully updated" );
-            }
-
-            if ( isSchemaPartitionFirstExtraction )
-            {
-                logger.info( "begining to update schema partition LDIF files after modifying manadatory attributes" );
-
-                updateMandatoryOpAttributes( schemaLdifPartition, directoryService );
-
-                logger.info( "schema partition data was successfully updated" );
-            }
-
-            logger.info( "DirectoryService initialized in " + ( System.currentTimeMillis() - startTime ) + " milliseconds" );
-
-            return directoryService;
-        }
-    
-    /**
-     * 
-     * adds mandatory operational attributes {@link #MANDATORY_ENTRY_ATOP_MAP} and updates all the LDIF files.
-     * WARN: this method is only called for the first time when schema and config files are bootstrapped
-     *       afterwards it is the responsibility of the user to ensure correctness of LDIF files if modified
-     *       by hand
-     * 
-     * Note: we do these modifications explicitly cause we have no idea if each entry's LDIF file has the
-     *       correct values for all these mandatory attributes
-     * 
-     * @param partition instance of the partition Note: should only be those which are loaded before starting the DirectoryService
-     * @param dirService the DirectoryService instance
-     * @throws Exception
-     */
-    public void updateMandatoryOpAttributes( Partition partition, DirectoryService dirService ) throws Exception
-    {
-        CoreSession session = dirService.getAdminSession();
-
-        String adminDn = session.getEffectivePrincipal().getName();
-
-        ExprNode filter = new PresenceNode( SchemaConstants.OBJECT_CLASS_AT );
-
-        EntryFilteringCursor cursor = session.search( partition.getSuffixDn(), SearchScope.SUBTREE, filter,
-            AliasDerefMode.NEVER_DEREF_ALIASES, MANDATORY_ENTRY_ATOP_AT );
-        cursor.beforeFirst();
-
-        List<Modification> mods = new ArrayList<Modification>();
-
-        while ( cursor.next() )
-        {
-            Entry entry = cursor.get();
-
-            AttributeType atType = MANDATORY_ENTRY_ATOP_MAP.get( SchemaConstants.ENTRY_UUID_AT ).getAttributeType();
-
-            Attribute uuidAt = entry.get( atType );
-            String uuid = ( uuidAt == null ? null : uuidAt.getString() );
-
-            if ( !uuidChecker.isValidSyntax( uuid ) )
-            {
-                uuidAt = new DefaultAttribute( atType, UUID.randomUUID().toString() );
-            }
-
-            Modification uuidMod = new DefaultModification( ModificationOperation.REPLACE_ATTRIBUTE, uuidAt );
-            mods.add( uuidMod );
-
-            atType = MANDATORY_ENTRY_ATOP_MAP.get( SchemaConstants.ENTRY_CSN_AT ).getAttributeType();
-            Attribute csnAt = entry.get( atType );
-            String csn = ( csnAt == null ? null : csnAt.getString() );
-
-            if ( !csnChecker.isValidSyntax( csn ) )
-            {
-                csnAt = new DefaultAttribute( atType, dirService.getCSN().toString() );
-            }
-
-            Modification csnMod = new DefaultModification( ModificationOperation.REPLACE_ATTRIBUTE, csnAt );
-            mods.add( csnMod );
-
-            atType = MANDATORY_ENTRY_ATOP_MAP.get( SchemaConstants.CREATORS_NAME_AT ).getAttributeType();
-            Attribute creatorAt = entry.get( atType );
-            String creator = ( creatorAt == null ? "" : creatorAt.getString().trim() );
-
-            if ( ( creator.length() == 0 ) || ( !Dn.isValid( creator ) ) )
-            {
-                creatorAt = new DefaultAttribute( atType, adminDn );
-            }
-
-            Modification creatorMod = new DefaultModification( ModificationOperation.REPLACE_ATTRIBUTE, creatorAt );
-            mods.add( creatorMod );
-
-            atType = MANDATORY_ENTRY_ATOP_MAP.get( SchemaConstants.CREATE_TIMESTAMP_AT ).getAttributeType();
-            Attribute createdTimeAt = entry.get( atType );
-            String createdTime = ( createdTimeAt == null ? null : createdTimeAt.getString() );
-
-            if ( !timeChecker.isValidSyntax( createdTime ) )
-            {
-                createdTimeAt = new DefaultAttribute( atType, DateUtils.getGeneralizedTime() );
-            }
-
-            Modification createdMod = new DefaultModification( ModificationOperation.REPLACE_ATTRIBUTE, createdTimeAt );
-            mods.add( createdMod );
-
-            if ( !mods.isEmpty() )
-            {
-                logger.debug( "modifying the entry " + entry.getDn() + " after adding missing manadatory operational attributes");
-                ModifyOperationContext modifyContext = new ModifyOperationContext( session );
-                modifyContext.setEntry( entry );
-                modifyContext.setDn( entry.getDn() );
-                modifyContext.setModItems( mods );
-                partition.modify( modifyContext );
-            }
-
-            mods.clear();
-        }
-
-        cursor.close();
-    }
+	
 }
