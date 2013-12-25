@@ -17,17 +17,34 @@ import net.sourceforge.myvd.router.Router;
 import net.sourceforge.myvd.types.Bool;
 import net.sourceforge.myvd.types.DistinguishedName;
 import net.sourceforge.myvd.types.Filter;
+import net.sourceforge.myvd.types.FilterNode;
+import net.sourceforge.myvd.types.FilterType;
 import net.sourceforge.myvd.types.Int;
 import net.sourceforge.myvd.types.Password;
 import net.sourceforge.myvd.types.Results;
 import net.sourceforge.myvd.types.SessionVariables;
 
 import org.apache.directory.api.ldap.model.entry.Attribute;
+import org.apache.directory.api.ldap.model.entry.BinaryValue;
 import org.apache.directory.api.ldap.model.entry.DefaultEntry;
 import org.apache.directory.api.ldap.model.entry.Entry;
 import org.apache.directory.api.ldap.model.entry.Modification;
+import org.apache.directory.api.ldap.model.entry.StringValue;
+import org.apache.directory.api.ldap.model.entry.Value;
 import org.apache.directory.api.ldap.model.exception.LdapException;
 import org.apache.directory.api.ldap.model.exception.LdapInvalidDnException;
+import org.apache.directory.api.ldap.model.exception.LdapInvalidSearchFilterException;
+import org.apache.directory.api.ldap.model.filter.AndNode;
+import org.apache.directory.api.ldap.model.filter.EqualityNode;
+import org.apache.directory.api.ldap.model.filter.ExprNode;
+import org.apache.directory.api.ldap.model.filter.FilterEncoder;
+import org.apache.directory.api.ldap.model.filter.GreaterEqNode;
+import org.apache.directory.api.ldap.model.filter.LessEqNode;
+import org.apache.directory.api.ldap.model.filter.NotNode;
+import org.apache.directory.api.ldap.model.filter.ObjectClassNode;
+import org.apache.directory.api.ldap.model.filter.OrNode;
+import org.apache.directory.api.ldap.model.filter.PresenceNode;
+import org.apache.directory.api.ldap.model.filter.SubstringNode;
 import org.apache.directory.api.ldap.model.message.ResultCodeEnum;
 import org.apache.directory.api.ldap.model.name.Dn;
 import org.apache.directory.api.ldap.model.name.Rdn;
@@ -532,9 +549,14 @@ public class MyVDPartition extends AbstractPartition {
 		
 		sb.setLength(sb.length() - 1);
 		
+		Filter filter = this.generateMyVDFilter(search.getFilter());
+		
+		if (filter == null) {
+			throw new LdapInvalidSearchFilterException("Unable to parse filter : '" + search.getFilter().toString() + "'");
+		}
 		
 		try {
-			chain.nextSearch(new DistinguishedName(sb.toString()), new Int(search.getScope().getScope()), new Filter(search.getFilter().toString()), attrs, new Bool(search.isTypesOnly()), res, new LDAPSearchConstraints());
+			chain.nextSearch(new DistinguishedName(sb.toString()), new Int(search.getScope().getScope()), filter, attrs, new Bool(search.isTypesOnly()), res, new LDAPSearchConstraints());
 			res.start();
 		} catch (LDAPException e) {
 			throw this.generateException(e);
@@ -614,5 +636,177 @@ public class MyVDPartition extends AbstractPartition {
 		
 		
 	}
+	
+	private Filter generateMyVDFilter(ExprNode root) {
+		
+		FilterNode myvdroot = copyNode(root);
+		
+		if (myvdroot == null) {
+			return null;
+		} else { 
+			return new Filter(myvdroot);
+		}
+		
+	}
+
+	private FilterNode copyNode(ExprNode root) {
+		if (root instanceof PresenceNode) {
+			PresenceNode n = (PresenceNode) root;
+			return new FilterNode(FilterType.PRESENCE,n.getAttribute(),"*");
+		} else if (root instanceof ObjectClassNode) {
+			return new FilterNode(FilterType.PRESENCE,"objectClass","*");
+		} else if (root instanceof EqualityNode) {
+			EqualityNode n = (EqualityNode) root;
+			return new FilterNode(FilterType.EQUALS,n.getAttribute(),n.getValue().getString());
+		} else if (root instanceof GreaterEqNode) {
+			GreaterEqNode n = (GreaterEqNode) root;
+			return new FilterNode(FilterType.GREATER_THEN,n.getAttribute(),n.getValue().getString());
+		} else if (root instanceof LessEqNode) {
+			LessEqNode n = (LessEqNode) root;
+			return new FilterNode(FilterType.LESS_THEN,n.getAttribute(),n.getValue().getString());
+		} else if (root instanceof NotNode) {
+			NotNode n = (NotNode) root;
+			FilterNode not = copyNode(n.getFirstChild());
+			ArrayList<FilterNode> children = new ArrayList<FilterNode>();
+			children.add(not);
+			return new FilterNode(FilterType.NOT,children);
+		} else if (root instanceof AndNode) {
+			AndNode n = (AndNode) root;
+			ArrayList<FilterNode> children = new ArrayList<FilterNode>();
+			for (ExprNode node : n.getChildren()) {
+				children.add(copyNode(node));
+			}
+			
+			return new FilterNode(FilterType.AND,children);
+		} else if (root instanceof OrNode) {
+			OrNode n = (OrNode) root;
+			ArrayList<FilterNode> children = new ArrayList<FilterNode>();
+			for (ExprNode node : n.getChildren()) {
+				children.add(copyNode(node));
+			}
+			
+			return new FilterNode(FilterType.OR,children);
+		} else if (root instanceof SubstringNode) {
+			return new FilterNode(FilterType.SUBSTR,((SubstringNode) root).getAttribute(),getSubStrFilterText((SubstringNode) root));
+		} else return null;
+	}
+	
+	private String getSubStrFilterText(SubstringNode node)
+    {
+        StringBuilder buf = new StringBuilder();
+
+        
+
+        if ( null != node.getInitial() )
+        {
+            buf.append( escapeFilterValue( new StringValue( node.getInitial() ) ) ).append( '*' );
+        }
+        else
+        {
+            buf.append( '*' );
+        }
+
+        if ( null != node.getAny() )
+        {
+            for ( String any : node.getAny() )
+            {
+                buf.append( escapeFilterValue( new StringValue( any ) ) );
+                buf.append( '*' );
+            }
+        }
+
+        if ( null != node.getFinal() )
+        {
+            buf.append( escapeFilterValue( new StringValue( node.getFinal() ) ) );
+        }
+
+        
+
+        return buf.toString();
+    }
+	
+	/**
+     * Handles the escaping of special characters in LDAP search filter assertion values using the
+     * &lt;valueencoding&gt; rule as described in
+     * <a href="http://www.ietf.org/rfc/rfc4515.txt">RFC 4515</a>. Needed so that
+     * {@link ExprNode#printToBuffer(StringBuffer)} results in a valid filter string that can be parsed
+     * again (as a way of cloning filters).
+     *
+     * @param value Right hand side of "attrId=value" assertion occurring in an LDAP search filter.
+     * @return Escaped version of <code>value</code>
+     */
+    protected Value<?> escapeFilterValue( Value<?> value )
+    {
+        if ( value.isNull() )
+        {
+            return value;
+        }
+
+        StringBuilder sb = null;
+        String val;
+
+        if ( !value.isHumanReadable() )
+        {
+            sb = new StringBuilder( ( ( BinaryValue ) value ).getReference().length * 3 );
+
+            for ( byte b : ( ( BinaryValue ) value ).getReference() )
+            {
+                if ( ( b < 0x7F ) && ( b >= 0 ) )
+                {
+                    switch ( b )
+                    {
+                        case '*':
+                            sb.append( "\\2A" );
+                            break;
+
+                        case '(':
+                            sb.append( "\\28" );
+                            break;
+
+                        case ')':
+                            sb.append( "\\29" );
+                            break;
+
+                        case '\\':
+                            sb.append( "\\5C" );
+                            break;
+
+                        case '\0':
+                            sb.append( "\\00" );
+                            break;
+
+                        default:
+                            sb.append( ( char ) b );
+                    }
+                }
+                else
+                {
+                    sb.append( '\\' );
+                    String digit = Integer.toHexString( b & 0x00FF );
+
+                    if ( digit.length() == 1 )
+                    {
+                        sb.append( '0' );
+                    }
+
+                    sb.append( digit.toUpperCase() );
+                }
+            }
+
+            return new StringValue( sb.toString() );
+        }
+
+        val = ( ( StringValue ) value ).getString();
+        String encodedVal = FilterEncoder.encodeFilterValue( val );
+        if ( val.equals( encodedVal ) )
+        {
+            return value;
+        }
+        else
+        {
+            return new StringValue( encodedVal );
+        }
+    }
+	
 
 }
