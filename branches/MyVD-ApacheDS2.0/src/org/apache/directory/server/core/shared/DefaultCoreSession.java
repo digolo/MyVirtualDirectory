@@ -147,6 +147,10 @@ public class DefaultCoreSession implements CoreSession
     public void setIoSession( IoSession ioSession )
     {
         this.ioSession = ioSession;
+        HashMap<Object,Object> lsession = (HashMap<Object, Object>) ioSession.getAttribute("MYVD_USER_SESSION");
+        if (lsession != null) {
+        	this.userSession = lsession;
+        }
     }
 
 
