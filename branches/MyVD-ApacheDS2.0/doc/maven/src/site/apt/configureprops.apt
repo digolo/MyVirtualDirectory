@@ -12,7 +12,7 @@ Configuring MyVD
  
  The MyVD configuration file is broken into three parts:
  
- * Server and Listeners
+ * Listener
 
  * Global Namespace
 
@@ -21,19 +21,6 @@ Configuring MyVD
  []
 
  The listener portion defines what port the server will listen on and if there is a secure port.  The global namespace defines what inserts will run for all requests and the local namespaces defines what inserts will run for indivdual namespaces.
-
-* Servers and Name Spaces
-
- MyVD can support any number of name spaces.  By default, these namespaces are based on the roots for each local namespace.  If the configuration needs a strict set of namespaces, or you need to support namespaces outside of the individual namespaces
- (ie for mapped bases) they can be added here:
- 
-+----------+
-#Publish only the namespace o=mycompany,c=us
-server.numRootNameSpaces=1
-server.rootNameSpaces.0=o=mycompany,c=us
-server.rootNameSpacesStrict=true
-+----------+
-
 
 * Configuring the Listener
 
