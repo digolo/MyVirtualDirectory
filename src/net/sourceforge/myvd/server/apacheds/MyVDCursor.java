@@ -56,7 +56,7 @@ public class MyVDCursor extends AbstractCursor<Entry> {
 			while (res.hasMore()) res.next();
 			le = null;
 		} catch (LDAPException e) {
-			throw MyVDPartition.generateException(e);
+			throw MyVDInterceptor.generateException(e);
 		}
 		
 	}
@@ -66,7 +66,7 @@ public class MyVDCursor extends AbstractCursor<Entry> {
 		try {
 			return res.hasMore();
 		} catch (LDAPException e) {
-			this.le =  MyVDPartition.generateException(e);
+			this.le =  MyVDInterceptor.generateException(e);
 			return true;
 		}
 	}
@@ -152,7 +152,7 @@ public class MyVDCursor extends AbstractCursor<Entry> {
 			}
 			return true;
 		} catch (LDAPException e) {
-			throw MyVDPartition.generateException(e);
+			throw MyVDInterceptor.generateException(e);
 		}
 	}
 
@@ -161,7 +161,7 @@ public class MyVDCursor extends AbstractCursor<Entry> {
 		try {
 			return res.hasMore();
 		} catch (LDAPException e) {
-			throw MyVDPartition.generateException(e);
+			throw MyVDInterceptor.generateException(e);
 		}
 	}
 

@@ -42,9 +42,9 @@ import net.sourceforge.myvd.core.InsertChain;
 import net.sourceforge.myvd.core.NameSpace;
 import net.sourceforge.myvd.inserts.Insert;
 import net.sourceforge.myvd.router.Router;
-import net.sourceforge.myvd.server.apacheds.MyVDAuthenticator;
+
 import net.sourceforge.myvd.server.apacheds.MyVDInterceptor;
-import net.sourceforge.myvd.server.apacheds.MyVDPartition;
+
 import net.sourceforge.myvd.server.apacheds.MyVDReferalManager;
 import net.sourceforge.myvd.types.DistinguishedName;
 
@@ -300,7 +300,7 @@ public class Server {
         
         
         
-        int i = 0;
+        /*int i = 0;
         for (String top : serverCore.getNamespaces()) {
         	MyVDPartition myvd = new MyVDPartition(this.globalChain,this.router);
         	myvd.setId("myvd" + i);
@@ -310,7 +310,7 @@ public class Server {
         	
         	directoryService.addPartition(myvd);
         	i++;
-        }
+        }*/
         /*
         MyVDAuthenticator myVDAuth = new MyVDAuthenticator(globalChain,router,directoryService.getSchemaManager());
         AuthenticationInterceptor interceptor = (AuthenticationInterceptor) directoryService.getInterceptor(InterceptorEnum.AUTHENTICATION_INTERCEPTOR.getName());
