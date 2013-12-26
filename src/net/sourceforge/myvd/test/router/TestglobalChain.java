@@ -18,6 +18,7 @@ package net.sourceforge.myvd.test.router;
 import java.util.ArrayList;
 import java.util.Properties;
 
+import junit.framework.TestCase;
 import net.sourceforge.myvd.chain.AddInterceptorChain;
 import net.sourceforge.myvd.chain.BindInterceptorChain;
 import net.sourceforge.myvd.chain.CompareInterceptorChain;
@@ -47,7 +48,11 @@ import com.novell.ldap.LDAPException;
 import com.novell.ldap.LDAPModification;
 import com.novell.ldap.LDAPSearchConstraints;
 
-public class TestglobalChain implements Insert {
+public class TestglobalChain extends TestCase implements Insert {
+	
+	public void testdonothing() {
+		
+	}
 
 	String name;
 	
