@@ -867,7 +867,9 @@ public class SchemaInterceptor extends BaseInterceptor
         // - all the attribute are in MUST and MAY, except fo the extensibleObeject OC
         // is present
         // - We haven't removed a part of the Rdn
-        check( dn, tempEntry );
+        
+        // MyVD doesn't require schema checks
+        // check( dn, tempEntry );
     }
 
     /**
@@ -1128,9 +1130,9 @@ public class SchemaInterceptor extends BaseInterceptor
     {
         Entry entry = next( lookupContext );
 
-        ServerEntryUtils.filterContents(
+        /*ServerEntryUtils.filterContents(
             lookupContext.getSession().getDirectoryService().getSchemaManager(),
-            lookupContext, entry );
+            lookupContext, entry );*/
 
         return entry;
     }

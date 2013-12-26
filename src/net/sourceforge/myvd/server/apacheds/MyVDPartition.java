@@ -514,7 +514,7 @@ public class MyVDPartition extends AbstractPartition {
 		// ignore all requests from the system user
 		if (search.getSession().getAuthenticatedPrincipal().getDn().toString().equalsIgnoreCase("uid=admin,ou=system")) {
 			Results res = new Results(this.globalChain);
-			return new MyVDBaseCursor(new MyVDCursor(res,this),search,this.getSchemaManager());
+			return new MyVDBaseCursor(new MyVDCursor(res,this.getSchemaManager()),search,this.getSchemaManager());
 		}
 		
 		
@@ -575,7 +575,7 @@ public class MyVDPartition extends AbstractPartition {
 			throw this.generateException(e);
 		}
 		
-		return new MyVDBaseCursor(new MyVDCursor(res,this),search,this.getSchemaManager());
+		return new MyVDBaseCursor(new MyVDCursor(res,this.getSchemaManager()),search,this.getSchemaManager());
 	}
 
 	

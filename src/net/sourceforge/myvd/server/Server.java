@@ -43,7 +43,9 @@ import net.sourceforge.myvd.core.NameSpace;
 import net.sourceforge.myvd.inserts.Insert;
 import net.sourceforge.myvd.router.Router;
 import net.sourceforge.myvd.server.apacheds.MyVDAuthenticator;
+import net.sourceforge.myvd.server.apacheds.MyVDInterceptor;
 import net.sourceforge.myvd.server.apacheds.MyVDPartition;
+import net.sourceforge.myvd.server.apacheds.MyVDReferalManager;
 import net.sourceforge.myvd.types.DistinguishedName;
 
 import org.apache.directory.api.ldap.model.constants.AuthenticationLevel;
@@ -265,6 +267,7 @@ public class Server {
         directoryService.setAccessControlEnabled(false);
         directoryService.setAllowAnonymousAccess(true);
         directoryService.setInstanceLayout(new InstanceLayout(new File("/tmp/test")));
+        directoryService.setReferralManager(new MyVDReferalManager());
         
         /*CacheService cacheService = new CacheService();
         
@@ -307,7 +310,7 @@ public class Server {
         	directoryService.addPartition(myvd);
         	i++;
         }
-        
+        /*
         MyVDAuthenticator myVDAuth = new MyVDAuthenticator(globalChain,router,directoryService.getSchemaManager());
         AuthenticationInterceptor interceptor = (AuthenticationInterceptor) directoryService.getInterceptor(InterceptorEnum.AUTHENTICATION_INTERCEPTOR.getName());
         interceptor.setAuthenticators(new Authenticator[]{new AnonymousAuthenticator(), myVDAuth, new StrongAuthenticator()});
@@ -316,7 +319,9 @@ public class Server {
         remove.add(directoryService.getInterceptor(InterceptorEnum.CHANGE_LOG_INTERCEPTOR.getName()));
         remove.add(directoryService.getInterceptor(InterceptorEnum.OPERATIONAL_ATTRIBUTE_INTERCEPTOR.getName()));
         remove.add(directoryService.getInterceptor(InterceptorEnum.COLLECTIVE_ATTRIBUTE_INTERCEPTOR.getName()));
-        
+        remove.add(directoryService.getInterceptor(InterceptorEnum.ADMINISTRATIVE_POINT_INTERCEPTOR.getName()));
+        remove.add(directoryService.getInterceptor(InterceptorEnum.DEFAULT_AUTHORIZATION_INTERCEPTOR.getName()));
+        remove.add(directoryService.getInterceptor(InterceptorEnum.ACI_AUTHORIZATION_INTERCEPTOR.getName()));
         List<Interceptor> newlist = new ArrayList<Interceptor>();
         
         for (Interceptor cur : directoryService.getInterceptors()) {
@@ -324,7 +329,10 @@ public class Server {
         		newlist.add(cur);
         	}
         }
+        */
         
+        List<Interceptor> newlist = new ArrayList<Interceptor>();
+        newlist.add(new MyVDInterceptor(globalChain,router,directoryService.getSchemaManager()));
         
         directoryService.setInterceptors(newlist);
         
