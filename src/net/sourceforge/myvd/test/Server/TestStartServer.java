@@ -214,7 +214,91 @@ public class TestStartServer extends TestCase {
 	}
 	
 	
-	
+public void testSearchRootDSE() throws LDAPException {
+		
+		
+		
+		
+		
+		LDAPAttributeSet attribs = new LDAPAttributeSet();
+		
+		
+		attribs.add(new LDAPAttribute("namingContexts","o=mycompany,c=us"));
+		attribs.add(new LDAPAttribute("globalTestAttrib","globalTestVal"));
+		
+		LDAPAttribute a = new LDAPAttribute("supportedLDAPVersion");
+		a.addValue("2");
+		a.addValue("3");
+		attribs.add(a);
+		
+		a = new LDAPAttribute("subSchemaSubEntry");
+		a.addValue("cn=schema");
+		attribs.add(a);
+		
+		a = new LDAPAttribute("supportedControls");
+		a.addValue("2.16.840.1.113730.3.4.18");
+		a.addValue("2.16.840.1.113730.3.4.2");
+		a.addValue("1.3.6.1.4.1.4203.1.10.1");
+		a.addValue("1.2.840.113556.1.4.319");
+		a.addValue("1.2.826.0.1.334810.2.3");
+		a.addValue("1.2.826.0.1.3344810.2.3");
+		a.addValue("1.3.6.1.1.13.2");
+		a.addValue("1.3.6.1.1.13.1");
+		a.addValue("1.3.6.1.1.12");
+		attribs.add(a);
+
+		a = new LDAPAttribute("supportedSaslMechanisms");
+		a.addValue("NONE");
+		attribs.add(a);
+		
+		LDAPEntry entry1 = new LDAPEntry("",attribs);
+		
+		
+		LDAPConnection con = new LDAPConnection();
+		con.connect("127.0.0.1",50983);
+		//con.bind(3,"cn=admin,o=mycompany","manager".getBytes());
+		LDAPSearchResults res = con.search("",0,"(objectClass=*)",new String[]{"namingContexts"},false);
+		
+		
+		
+		
+		
+		
+		
+		int size = 0;
+		
+		
+			while (res.hasMore()) {
+				LDAPEntry fromDir = res.next();
+				LDAPEntry controlEntry = null;//control.get(fromDir.getEntry().getDN());
+				
+				if (size == 0) {
+					controlEntry = entry1;
+				} else {
+					controlEntry = null;
+				}
+				
+				if (controlEntry == null) {
+					fail("Entry " + fromDir.getDN() + " should not be returned");
+					return;
+				}
+				
+				if (! Util.compareEntry(fromDir,controlEntry)) {
+					fail("The entry was not correct : " + Util.toLDIF(fromDir) + "\ncontrol:\n" + Util.toLDIF(controlEntry));
+					return;
+				}
+				
+				size++;
+			}
+		
+		
+		if (size != 1) {
+			fail("Not the correct number of entries : " + size);
+		}
+			
+		con.disconnect();
+		
+	}
 
 
 	

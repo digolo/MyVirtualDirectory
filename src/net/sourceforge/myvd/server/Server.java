@@ -208,11 +208,7 @@ public class Server {
         directoryService.setInstanceLayout(new InstanceLayout(new File("/tmp/test")));
         directoryService.setReferralManager(new MyVDReferalManager());
         
-        /*CacheService cacheService = new CacheService();
         
-        cacheService.initialize( directoryService.getInstanceLayout() );
-
-        directoryService.setCacheService( cacheService );*/
         
         
         // first load the schema
@@ -238,37 +234,6 @@ public class Server {
         
         
         
-        /*int i = 0;
-        for (String top : serverCore.getNamespaces()) {
-        	MyVDPartition myvd = new MyVDPartition(this.globalChain,this.router);
-        	myvd.setId("myvd" + i);
-        	myvd.setSchemaManager(directoryService.getSchemaManager());
-        	myvd.setSuffixDn(new Dn(top));
-        	myvd.initialize();
-        	
-        	directoryService.addPartition(myvd);
-        	i++;
-        }*/
-        /*
-        MyVDAuthenticator myVDAuth = new MyVDAuthenticator(globalChain,router,directoryService.getSchemaManager());
-        AuthenticationInterceptor interceptor = (AuthenticationInterceptor) directoryService.getInterceptor(InterceptorEnum.AUTHENTICATION_INTERCEPTOR.getName());
-        interceptor.setAuthenticators(new Authenticator[]{new AnonymousAuthenticator(), myVDAuth, new StrongAuthenticator()});
-        
-        HashSet<Interceptor> remove = new HashSet<Interceptor>();
-        remove.add(directoryService.getInterceptor(InterceptorEnum.CHANGE_LOG_INTERCEPTOR.getName()));
-        remove.add(directoryService.getInterceptor(InterceptorEnum.OPERATIONAL_ATTRIBUTE_INTERCEPTOR.getName()));
-        remove.add(directoryService.getInterceptor(InterceptorEnum.COLLECTIVE_ATTRIBUTE_INTERCEPTOR.getName()));
-        remove.add(directoryService.getInterceptor(InterceptorEnum.ADMINISTRATIVE_POINT_INTERCEPTOR.getName()));
-        remove.add(directoryService.getInterceptor(InterceptorEnum.DEFAULT_AUTHORIZATION_INTERCEPTOR.getName()));
-        remove.add(directoryService.getInterceptor(InterceptorEnum.ACI_AUTHORIZATION_INTERCEPTOR.getName()));
-        List<Interceptor> newlist = new ArrayList<Interceptor>();
-        
-        for (Interceptor cur : directoryService.getInterceptors()) {
-        	if (! remove.contains(cur)) {
-        		newlist.add(cur);
-        	}
-        }
-        */
         
         List<Interceptor> newlist = new ArrayList<Interceptor>();
         newlist.add(new MyVDInterceptor(globalChain,router,directoryService.getSchemaManager()));
