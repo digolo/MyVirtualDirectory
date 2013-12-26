@@ -27,6 +27,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -84,6 +85,7 @@ import org.apache.directory.server.core.api.DirectoryService;
 import org.apache.directory.server.core.api.InstanceLayout;
 import org.apache.directory.server.core.api.InterceptorEnum;
 import org.apache.directory.server.core.api.filtering.EntryFilteringCursor;
+import org.apache.directory.server.core.api.interceptor.Interceptor;
 import org.apache.directory.server.core.api.interceptor.context.ModifyOperationContext;
 import org.apache.directory.server.core.api.partition.Partition;
 import org.apache.directory.server.core.api.schema.SchemaPartition;
@@ -91,6 +93,7 @@ import org.apache.directory.server.core.authn.AnonymousAuthenticator;
 import org.apache.directory.server.core.authn.AuthenticationInterceptor;
 import org.apache.directory.server.core.authn.Authenticator;
 import org.apache.directory.server.core.authn.StrongAuthenticator;
+import org.apache.directory.server.core.changelog.ChangeLogInterceptor;
 import org.apache.directory.server.core.partition.impl.btree.jdbm.JdbmPartition;
 import org.apache.directory.server.core.partition.ldif.LdifPartition;
 import org.apache.directory.server.core.partition.ldif.SingleFileLdifPartition;
@@ -309,6 +312,21 @@ public class Server {
         AuthenticationInterceptor interceptor = (AuthenticationInterceptor) directoryService.getInterceptor(InterceptorEnum.AUTHENTICATION_INTERCEPTOR.getName());
         interceptor.setAuthenticators(new Authenticator[]{new AnonymousAuthenticator(), myVDAuth, new StrongAuthenticator()});
         
+        HashSet<Interceptor> remove = new HashSet<Interceptor>();
+        remove.add(directoryService.getInterceptor(InterceptorEnum.CHANGE_LOG_INTERCEPTOR.getName()));
+        remove.add(directoryService.getInterceptor(InterceptorEnum.OPERATIONAL_ATTRIBUTE_INTERCEPTOR.getName()));
+        remove.add(directoryService.getInterceptor(InterceptorEnum.COLLECTIVE_ATTRIBUTE_INTERCEPTOR.getName()));
+        
+        List<Interceptor> newlist = new ArrayList<Interceptor>();
+        
+        for (Interceptor cur : directoryService.getInterceptors()) {
+        	if (! remove.contains(cur)) {
+        		newlist.add(cur);
+        	}
+        }
+        
+        
+        directoryService.setInterceptors(newlist);
         
         directoryService.startup();
         

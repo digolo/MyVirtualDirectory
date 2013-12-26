@@ -122,10 +122,14 @@ public class MyVDPartition extends AbstractPartition {
 			LDAPAttribute lattr = attrs.getAttribute(attr.getAttributeType().getName());
 			if (lattr == null) {
 				lattr = new LDAPAttribute(attr.getAttributeType().getName());
-				
+				attrs.add(lattr);
 			}
 			
-			lattr.addValue(attr.getBytes());
+			if (attr.isHumanReadable()) {
+				lattr.addValue(attr.getString());
+			} else {
+				lattr.addValue(attr.getBytes());
+			}
 			
 		}
 		
@@ -172,12 +176,12 @@ public class MyVDPartition extends AbstractPartition {
 		Password pass = new Password(password);
 		
 		
-		SearchInterceptorChain chain = new SearchInterceptorChain(bindDN,pass,0,this.globalChain,userSession,userRequest,this.router);
+		/*SearchInterceptorChain chain = new SearchInterceptorChain(bindDN,pass,0,this.globalChain,userSession,userRequest,this.router);
 		Results res = new Results(this.globalChain);
 		Entry entry = new DefaultEntry();
 		try {
 			chain.nextSearch(new DistinguishedName(del.getDn().getName()), new Int(0), new Filter("(objectClass=*)"), new ArrayList<net.sourceforge.myvd.types.Attribute>(), new Bool(false), res, new LDAPSearchConstraints());
-			
+			res.next();
 			res.hasMore();
 			LDAPEntry nentry = res.next().getEntry();
 			
@@ -193,7 +197,7 @@ public class MyVDPartition extends AbstractPartition {
 			}
 		} catch (LDAPException e1) {
 			throw generateException(e1);
-		}
+		}*/
 		
 		
 		DeleteInterceptorChain dchain = new DeleteInterceptorChain(bindDN,pass,0,this.globalChain,userSession,userRequest,this.router);
@@ -205,7 +209,7 @@ public class MyVDPartition extends AbstractPartition {
 			throw generateException(e);
 		}
 		
-		return entry;
+		return del.getOriginalEntry();
 	}
 
 
@@ -301,7 +305,7 @@ public class MyVDPartition extends AbstractPartition {
 		Entry entry = new DefaultEntry();
 		try {
 			chain.nextSearch(new DistinguishedName(lookup.getDn().getName()), new Int(0), new Filter("(objectClass=*)"), new ArrayList<net.sourceforge.myvd.types.Attribute>(), new Bool(false), res, new LDAPSearchConstraints());
-			
+			res.start();
 			if (res.hasMore()) {
 				LDAPEntry nentry = res.next().getEntry();
 				
