@@ -12,6 +12,7 @@ import org.apache.directory.api.ldap.model.exception.LdapException;
 import org.apache.directory.api.ldap.model.exception.LdapInvalidDnException;
 import org.apache.directory.api.ldap.model.exception.LdapNoSuchAttributeException;
 import org.apache.directory.api.ldap.model.schema.AttributeType;
+import org.apache.directory.api.ldap.model.schema.SchemaManager;
 
 import com.novell.ldap.LDAPAttribute;
 import com.novell.ldap.LDAPAttributeSet;
@@ -21,19 +22,20 @@ import com.novell.ldap.LDAPException;
 public class MyVDCursor extends AbstractCursor<Entry> {
 
 	
-	MyVDPartition partition;
+	
 	private Results res;
 	LdapException le;
 	boolean first;
 	
 	net.sourceforge.myvd.types.Entry buffer;
+	private SchemaManager schemaManager;
 
-	public MyVDCursor(Results res,MyVDPartition partition) {
+	public MyVDCursor(Results res,SchemaManager schemaManager) {
 		this.res = res;
 		le = null;
 		first = true;
 		buffer = null;
-		this.partition = partition;
+		this.schemaManager = schemaManager;
 		
 	}
 	
@@ -134,7 +136,7 @@ public class MyVDCursor extends AbstractCursor<Entry> {
 		StringBuffer b = new StringBuffer(base);
 		b.append(num);
 		
-		if (this.partition.getSchemaManager().getAttributeType(b.toString()) == null ) {
+		if (this.schemaManager.getAttributeType(b.toString()) == null ) {
 			return b.toString();
 		} else {
 			return generateRandomOID();
