@@ -505,6 +505,8 @@ public class MyVDPartition extends AbstractPartition {
 	public EntryFilteringCursor search(SearchOperationContext search)
 			throws LdapException {
 		
+		
+		
 		// ignore all requests from the system user
 		if (search.getSession().getAuthenticatedPrincipal().getDn().toString().equalsIgnoreCase("uid=admin,ou=system")) {
 			Results res = new Results(this.globalChain);

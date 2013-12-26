@@ -41,9 +41,11 @@ import net.sourceforge.myvd.core.InsertChain;
 import net.sourceforge.myvd.core.NameSpace;
 import net.sourceforge.myvd.inserts.Insert;
 import net.sourceforge.myvd.router.Router;
+import net.sourceforge.myvd.server.apacheds.MyVDAuthenticator;
 import net.sourceforge.myvd.server.apacheds.MyVDPartition;
 import net.sourceforge.myvd.types.DistinguishedName;
 
+import org.apache.directory.api.ldap.model.constants.AuthenticationLevel;
 import org.apache.directory.api.ldap.model.constants.SchemaConstants;
 import org.apache.directory.api.ldap.model.entry.Attribute;
 import org.apache.directory.api.ldap.model.entry.DefaultAttribute;
@@ -80,10 +82,15 @@ import org.apache.directory.server.core.api.CacheService;
 import org.apache.directory.server.core.api.CoreSession;
 import org.apache.directory.server.core.api.DirectoryService;
 import org.apache.directory.server.core.api.InstanceLayout;
+import org.apache.directory.server.core.api.InterceptorEnum;
 import org.apache.directory.server.core.api.filtering.EntryFilteringCursor;
 import org.apache.directory.server.core.api.interceptor.context.ModifyOperationContext;
 import org.apache.directory.server.core.api.partition.Partition;
 import org.apache.directory.server.core.api.schema.SchemaPartition;
+import org.apache.directory.server.core.authn.AnonymousAuthenticator;
+import org.apache.directory.server.core.authn.AuthenticationInterceptor;
+import org.apache.directory.server.core.authn.Authenticator;
+import org.apache.directory.server.core.authn.StrongAuthenticator;
 import org.apache.directory.server.core.partition.impl.btree.jdbm.JdbmPartition;
 import org.apache.directory.server.core.partition.ldif.LdifPartition;
 import org.apache.directory.server.core.partition.ldif.SingleFileLdifPartition;
@@ -122,39 +129,6 @@ public class Server {
 
 	private LdapServer ldapServer;
 
-
-	private boolean isSchemaPartitionFirstExtraction;
-
-
-	private DefaultSchemaManager schemaManager;
-
-
-	private LdifPartition schemaLdifPartition;
-
-
-	private boolean isConfigPartitionFirstExtraction;
-
-
-	private ConfigPartitionReader cpReader;
-
-
-	
-
-	private static final Map<String, AttributeTypeOptions> MANDATORY_ENTRY_ATOP_MAP = new HashMap<String, AttributeTypeOptions>();
-    private static String[] MANDATORY_ENTRY_ATOP_AT;
-    
-    /** The configuration partition */
-    private SingleFileLdifPartition configPartition;
-    
- // variables used during the initial startup to update the mandatory operational
-    // attributes
-    /** The UUID syntax checker instance */
-    private UuidSyntaxChecker uuidChecker = new UuidSyntaxChecker();
-
-    /** The CSN syntax checker instance */
-    private CsnSyntaxChecker csnChecker = new CsnSyntaxChecker();
-
-    private GeneralizedTimeSyntaxChecker timeChecker = new GeneralizedTimeSyntaxChecker();
     
 	public InsertChain getGlobalChain() {
 		return globalChain;
@@ -289,10 +263,12 @@ public class Server {
         directoryService.setAllowAnonymousAccess(true);
         directoryService.setInstanceLayout(new InstanceLayout(new File("/tmp/test")));
         
-        CacheService cacheService = new CacheService();
+        /*CacheService cacheService = new CacheService();
+        
         cacheService.initialize( directoryService.getInstanceLayout() );
 
-        directoryService.setCacheService( cacheService );
+        directoryService.setCacheService( cacheService );*/
+        
         
         // first load the schema
         initSchemaPartition();
@@ -328,6 +304,10 @@ public class Server {
         	directoryService.addPartition(myvd);
         	i++;
         }
+        
+        MyVDAuthenticator myVDAuth = new MyVDAuthenticator(globalChain,router,directoryService.getSchemaManager());
+        AuthenticationInterceptor interceptor = (AuthenticationInterceptor) directoryService.getInterceptor(InterceptorEnum.AUTHENTICATION_INTERCEPTOR.getName());
+        interceptor.setAuthenticators(new Authenticator[]{new AnonymousAuthenticator(), myVDAuth, new StrongAuthenticator()});
         
         
         directoryService.startup();
@@ -384,11 +364,11 @@ public class Server {
 
 	private static void getDefaultLog() {
 		Properties props = new Properties();
-		props.put("log4j.rootLogger", "debug,console");
+		props.put("log4j.rootLogger", "info,console");
 		
-		props.put("log4j.appender.console","org.apache.log4j.RollingFileAppender");
-		props.put("log4j.appender.console.File","/home/mlb/myvd.log");
-		//props.put("log4j.appender.console","org.apache.log4j.ConsoleAppender");
+		//props.put("log4j.appender.console","org.apache.log4j.RollingFileAppender");
+		//props.put("log4j.appender.console.File","/home/mlb/myvd.log");
+		props.put("log4j.appender.console","org.apache.log4j.ConsoleAppender");
 		props.put("log4j.appender.console.layout","org.apache.log4j.PatternLayout");
 		props.put("log4j.appender.console.layout.ConversionPattern","[%d][%t] %-5p %c{1} - %m%n");
 		
