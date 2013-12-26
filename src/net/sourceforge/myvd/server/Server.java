@@ -100,6 +100,7 @@ import org.apache.directory.server.core.partition.impl.btree.jdbm.JdbmPartition;
 import org.apache.directory.server.core.partition.ldif.LdifPartition;
 import org.apache.directory.server.core.partition.ldif.SingleFileLdifPartition;
 import org.apache.directory.server.ldap.LdapServer;
+import org.apache.directory.server.ldap.handlers.request.ExtendedRequestHandler;
 import org.apache.directory.server.protocol.shared.transport.TcpTransport;
 import org.apache.directory.server.i18n.I18n;
 import org.apache.log4j.Logger;
@@ -346,6 +347,8 @@ public class Server {
         this.ldapServer = new LdapServer();
         ldapServer.setDirectoryService(directoryService);
 		
+        
+        
 		portString = props.getProperty("server.listener.port","");
 		if (! portString.equals("")) {
 			TcpTransport ldapTransport = new TcpTransport(Integer.parseInt(portString));
@@ -354,7 +357,8 @@ public class Server {
 		
 		
         ldapServer.start();
-		
+        ((ExtendedRequestHandler) ldapServer.getExtendedRequestHandler()).init(globalChain, router);
+        
 		/*portString = props.getProperty("server.secure.listener.port","");
 		
 		if (! portString.equals("")) {
