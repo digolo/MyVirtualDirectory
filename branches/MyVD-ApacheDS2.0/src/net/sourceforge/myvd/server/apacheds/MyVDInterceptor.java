@@ -45,6 +45,7 @@ import org.apache.directory.api.ldap.model.filter.PresenceNode;
 import org.apache.directory.api.ldap.model.filter.SubstringNode;
 import org.apache.directory.api.ldap.model.message.ResultCodeEnum;
 import org.apache.directory.api.ldap.model.name.Rdn;
+import org.apache.directory.api.ldap.model.schema.AttributeTypeOptions;
 import org.apache.directory.api.ldap.model.schema.SchemaManager;
 import org.apache.directory.api.util.StringConstants;
 import org.apache.directory.server.core.api.CoreSession;
@@ -55,6 +56,7 @@ import org.apache.directory.server.core.api.interceptor.context.AddOperationCont
 import org.apache.directory.server.core.api.interceptor.context.BindOperationContext;
 import org.apache.directory.server.core.api.interceptor.context.CompareOperationContext;
 import org.apache.directory.server.core.api.interceptor.context.DeleteOperationContext;
+import org.apache.directory.server.core.api.interceptor.context.GetRootDseOperationContext;
 import org.apache.directory.server.core.api.interceptor.context.HasEntryOperationContext;
 import org.apache.directory.server.core.api.interceptor.context.LookupOperationContext;
 import org.apache.directory.server.core.api.interceptor.context.ModifyOperationContext;
@@ -125,10 +127,16 @@ public class MyVDInterceptor extends BaseInterceptor {
 				attrs.add(lattr);
 			}
 			
+			
+			
 			if (attr.isHumanReadable()) {
-				lattr.addValue(attr.getString());
+				for (Value<?> v : attr) {
+					lattr.addValue(v.getString());
+				}
 			} else {
-				lattr.addValue(attr.getBytes());
+				for (Value<?> v : attr) {
+					lattr.addValue(v.getBytes());
+				}
 			}
 			
 		}
@@ -470,7 +478,18 @@ public class MyVDInterceptor extends BaseInterceptor {
 		ArrayList<LDAPModification> mods = new ArrayList<LDAPModification>();
 		
 		for (Modification modification : mod.getModItems()) {
-			LDAPModification ldapMod = new LDAPModification(modification.getOperation().getValue(),new LDAPAttribute(modification.getAttribute().getAttributeType().getName(),modification.getAttribute().getBytes()));
+			LDAPModification ldapMod = new LDAPModification(modification.getOperation().getValue(),new LDAPAttribute(modification.getAttribute().getAttributeType().getName()));
+			
+			if (modification.getAttribute().isHumanReadable()) {
+				for (Value<?> s : modification.getAttribute()) {
+					ldapMod.getAttribute().addValue(s.getString());
+				}
+			} else {
+				for (Value<?> s : modification.getAttribute()) {
+					ldapMod.getAttribute().addValue(s.getBytes());
+				}
+			}
+			
 			mods.add(ldapMod);
 		}
 		
@@ -645,8 +664,15 @@ public class MyVDInterceptor extends BaseInterceptor {
 				
 				ArrayList<net.sourceforge.myvd.types.Attribute> attrs = new ArrayList<net.sourceforge.myvd.types.Attribute>();
 				
-				for (String attrName : search.getReturningAttributesString()) {
-					attrs.add(new net.sourceforge.myvd.types.Attribute(attrName));
+				if (! search.isNoAttributes()) {
+				
+					if (search.getOriginalAttributes() != null) {
+						for (String attrName : search.getOriginalAttributes()) {
+							attrs.add(new net.sourceforge.myvd.types.Attribute(attrName));
+						}
+					}
+				} else {
+					attrs.add(new net.sourceforge.myvd.types.Attribute("1.1"));
 				}
 				
 				/*StringBuffer sb = new StringBuffer();
@@ -711,9 +737,8 @@ private Filter generateMyVDFilter(ExprNode root) {
 		} else if (root instanceof NotNode) {
 			NotNode n = (NotNode) root;
 			FilterNode not = copyNode(n.getFirstChild());
-			ArrayList<FilterNode> children = new ArrayList<FilterNode>();
-			children.add(not);
-			return new FilterNode(FilterType.NOT,children);
+			
+			return new FilterNode(not);
 		} else if (root instanceof AndNode) {
 			AndNode n = (AndNode) root;
 			ArrayList<FilterNode> children = new ArrayList<FilterNode>();
@@ -896,6 +921,13 @@ private Filter generateMyVDFilter(ExprNode root) {
 		
 		ex.setStackTrace(e.getStackTrace());
 		return ex;
+	}
+
+	@Override
+	public Entry getRootDse(GetRootDseOperationContext getRootDseContext)
+			throws LdapException {
+		// TODO Auto-generated method stub
+		return super.getRootDse(getRootDseContext);
 	}
 
 }
