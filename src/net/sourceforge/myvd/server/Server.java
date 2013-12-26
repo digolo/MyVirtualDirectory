@@ -19,100 +19,38 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.nio.charset.Charset;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
-import java.util.StringTokenizer;
-import java.util.UUID;
-
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-
 import net.sourceforge.myvd.core.InsertChain;
-import net.sourceforge.myvd.core.NameSpace;
-import net.sourceforge.myvd.inserts.Insert;
 import net.sourceforge.myvd.router.Router;
 
 import net.sourceforge.myvd.server.apacheds.MyVDInterceptor;
 
 import net.sourceforge.myvd.server.apacheds.MyVDReferalManager;
-import net.sourceforge.myvd.types.DistinguishedName;
-
-import org.apache.directory.api.ldap.model.constants.AuthenticationLevel;
-import org.apache.directory.api.ldap.model.constants.SchemaConstants;
-import org.apache.directory.api.ldap.model.entry.Attribute;
-import org.apache.directory.api.ldap.model.entry.DefaultAttribute;
-import org.apache.directory.api.ldap.model.entry.DefaultModification;
-import org.apache.directory.api.ldap.model.entry.Entry;
-import org.apache.directory.api.ldap.model.entry.Modification;
-import org.apache.directory.api.ldap.model.entry.ModificationOperation;
-import org.apache.directory.api.ldap.model.filter.ExprNode;
-import org.apache.directory.api.ldap.model.filter.PresenceNode;
-import org.apache.directory.api.ldap.model.message.AliasDerefMode;
-import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.api.ldap.model.name.Dn;
-import org.apache.directory.api.ldap.model.schema.AttributeType;
-import org.apache.directory.api.ldap.model.schema.AttributeTypeOptions;
 import org.apache.directory.api.ldap.model.schema.SchemaManager;
 import org.apache.directory.api.ldap.model.schema.registries.SchemaLoader;
-import org.apache.directory.api.ldap.model.schema.syntaxCheckers.CsnSyntaxChecker;
-import org.apache.directory.api.ldap.model.schema.syntaxCheckers.GeneralizedTimeSyntaxChecker;
-import org.apache.directory.api.ldap.model.schema.syntaxCheckers.UuidSyntaxChecker;
 import org.apache.directory.api.ldap.schemaextractor.SchemaLdifExtractor;
 import org.apache.directory.api.ldap.schemaextractor.impl.DefaultSchemaLdifExtractor;
 import org.apache.directory.api.ldap.schemaloader.LdifSchemaLoader;
 import org.apache.directory.api.ldap.schemamanager.impl.DefaultSchemaManager;
-import org.apache.directory.api.util.DateUtils;
 import org.apache.directory.api.util.exception.Exceptions;
-import org.apache.directory.server.config.ConfigPartitionReader;
-import org.apache.directory.server.config.LdifConfigExtractor;
-import org.apache.directory.server.config.beans.ConfigBean;
-import org.apache.directory.server.config.beans.DirectoryServiceBean;
-import org.apache.directory.server.config.builder.ServiceBuilder;
 import org.apache.directory.server.constants.ServerDNConstants;
 import org.apache.directory.server.core.DefaultDirectoryService;
-import org.apache.directory.server.core.api.CacheService;
-import org.apache.directory.server.core.api.CoreSession;
-import org.apache.directory.server.core.api.DirectoryService;
 import org.apache.directory.server.core.api.InstanceLayout;
-import org.apache.directory.server.core.api.InterceptorEnum;
-import org.apache.directory.server.core.api.filtering.EntryFilteringCursor;
 import org.apache.directory.server.core.api.interceptor.Interceptor;
-import org.apache.directory.server.core.api.interceptor.context.ModifyOperationContext;
-import org.apache.directory.server.core.api.partition.Partition;
 import org.apache.directory.server.core.api.schema.SchemaPartition;
-import org.apache.directory.server.core.authn.AnonymousAuthenticator;
-import org.apache.directory.server.core.authn.AuthenticationInterceptor;
-import org.apache.directory.server.core.authn.Authenticator;
-import org.apache.directory.server.core.authn.StrongAuthenticator;
-import org.apache.directory.server.core.changelog.ChangeLogInterceptor;
 import org.apache.directory.server.core.partition.impl.btree.jdbm.JdbmPartition;
 import org.apache.directory.server.core.partition.ldif.LdifPartition;
-import org.apache.directory.server.core.partition.ldif.SingleFileLdifPartition;
 import org.apache.directory.server.ldap.LdapServer;
 import org.apache.directory.server.ldap.handlers.request.ExtendedRequestHandler;
 import org.apache.directory.server.protocol.shared.transport.TcpTransport;
 import org.apache.directory.server.i18n.I18n;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
-import org.apache.mina.filter.codec.ProtocolCodecFilter;
-import org.apache.mina.filter.codec.textline.TextLineCodecFactory;
-
 import com.novell.ldap.LDAPConnection;
 import com.novell.ldap.LDAPException;
-import com.novell.ldap.util.DN;
-
-import edu.emory.mathcs.backport.java.util.concurrent.Executors;
 
 
 public class Server {
