@@ -19,15 +19,19 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+
 import net.sourceforge.myvd.core.InsertChain;
 import net.sourceforge.myvd.router.Router;
-
 import net.sourceforge.myvd.server.apacheds.MyVDInterceptor;
-
 import net.sourceforge.myvd.server.apacheds.MyVDReferalManager;
+
 import org.apache.directory.api.ldap.model.name.Dn;
 import org.apache.directory.api.ldap.model.schema.SchemaManager;
 import org.apache.directory.api.ldap.model.schema.registries.SchemaLoader;
@@ -46,9 +50,11 @@ import org.apache.directory.server.core.partition.ldif.LdifPartition;
 import org.apache.directory.server.ldap.LdapServer;
 import org.apache.directory.server.ldap.handlers.request.ExtendedRequestHandler;
 import org.apache.directory.server.protocol.shared.transport.TcpTransport;
+import org.apache.directory.server.protocol.shared.transport.Transport;
 import org.apache.directory.server.i18n.I18n;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
+
 import com.novell.ldap.LDAPConnection;
 import com.novell.ldap.LDAPException;
 
@@ -201,11 +207,15 @@ public class Server {
 		this.globalChain = serverCore.getGlobalChain();
 		this.router = serverCore.getRouter();
 		
+		
+		String apachedsPath = this.configFile.substring(0,this.configFile.lastIndexOf(File.separator) + 1) + "apacheds-data";
+		
+		
 		this.directoryService = new DefaultDirectoryService();
         directoryService.setShutdownHookEnabled(false);
         directoryService.setAccessControlEnabled(false);
         directoryService.setAllowAnonymousAccess(true);
-        directoryService.setInstanceLayout(new InstanceLayout(new File("/tmp/test")));
+        directoryService.setInstanceLayout(new InstanceLayout(new File(apachedsPath)));
         directoryService.setReferralManager(new MyVDReferalManager());
         
         
@@ -250,46 +260,58 @@ public class Server {
         this.ldapServer = new LdapServer();
         ldapServer.setDirectoryService(directoryService);
 		
-        
+        ArrayList<TcpTransport> transports = new ArrayList<TcpTransport>();
         
 		portString = props.getProperty("server.listener.port","");
 		if (! portString.equals("")) {
 			TcpTransport ldapTransport = new TcpTransport(Integer.parseInt(portString));
-	        ldapServer.setTransports(ldapTransport);
+	        transports.add(ldapTransport);
 		}
 		
 		
-        ldapServer.start();
-        ((ExtendedRequestHandler) ldapServer.getExtendedRequestHandler()).init(globalChain, router);
         
-		/*portString = props.getProperty("server.secure.listener.port","");
+		portString = props.getProperty("server.secure.listener.port","");
 		
 		if (! portString.equals("")) {
 			String keyStorePath = props.getProperty("server.secure.keystore","");
+			
+			if (! keyStorePath.startsWith(File.separator)) {
+				keyStorePath = this.configFile.substring(0,this.configFile.lastIndexOf(File.separator) + 1) + keyStorePath;
+			}
+			
+			
 			logger.debug("Key store : " + keyStorePath);
 			
 			String keyStorePass = props.getProperty("server.secure.keypass","");
 			
 			KeyStore keystore;
 			try {
-				keystore = KeyStore.getInstance("JKS");
-				keystore.load(new FileInputStream(keyStorePath), keyStorePass.toCharArray());
-				KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-				kmf.init(keystore, keyStorePass.toCharArray());
-				SSLContext sslc = SSLContext.getInstance("SSLv3");
-				sslc.init(kmf.getKeyManagers(), null, null);
 				
-				SSLFilter sslFilter = new SSLFilter(sslc);
-				DefaultIoFilterChainBuilder chain = new DefaultIoFilterChainBuilder();
-		        chain.addLast( "SSL", sslFilter );
-		        
-		        startLDAP(portString,chain);
+				ldapServer.setKeystoreFile(keyStorePath);
+				ldapServer.setCertificatePassword(keyStorePass);
+				
+				TcpTransport ldapsTransport = new TcpTransport(Integer.parseInt(portString));
+				ldapsTransport.enableSSL(true);
+				transports.add(ldapsTransport);
+				
 			} catch (Throwable t) {
 				logger.error("Could not start LDAPS listener",t);
 				t.printStackTrace();
 			}
 		        
-		}*/
+		}
+		
+		Transport[] t = new Transport[transports.size()];
+		
+		int i=0;
+		for (Transport tt : transports) {
+			t[i] = tt;
+			i++;
+		}
+		
+		ldapServer.setTransports(t);
+        ldapServer.start();
+        ((ExtendedRequestHandler) ldapServer.getExtendedRequestHandler()).init(globalChain, router);
 		
 		
 		
