@@ -215,7 +215,7 @@ public class MyVDInterceptor extends BaseInterceptor {
         	BindInterceptorChain chain = new BindInterceptorChain(bindDN,pass,0,this.globalChain,userSession,userRequest,router);
         	chain.nextBind(newBindDN,newPass,new LDAPConstraints());
         } catch (LDAPException e) {
-        	throw MyVDPartition.generateException(e);
+        	throw MyVDInterceptor.generateException(e);
         }
         
         userSession.put("MYVD_BINDDN",newBindDN);
