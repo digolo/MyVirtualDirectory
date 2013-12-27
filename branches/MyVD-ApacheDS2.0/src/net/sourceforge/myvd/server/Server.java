@@ -309,6 +309,13 @@ public class Server {
 			i++;
 		}
 		
+		long maxSizeLimit = Long.parseLong(props.getProperty("server.listener.maxSizeLimit","0"));
+		ldapServer.setMaxSizeLimit(maxSizeLimit);
+		
+		int maxTimeLimit = Integer.parseInt(props.getProperty("server.listener.maxTimeLimit","0"));
+		ldapServer.setMaxTimeLimit(maxTimeLimit);
+		
+		
 		ldapServer.setTransports(t);
         ldapServer.start();
         ((ExtendedRequestHandler) ldapServer.getExtendedRequestHandler()).init(globalChain, router);
