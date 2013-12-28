@@ -21,17 +21,21 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.KeyStore;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.StringTokenizer;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 
 import net.sourceforge.myvd.core.InsertChain;
 import net.sourceforge.myvd.router.Router;
+import net.sourceforge.myvd.server.apacheds.ApacheDSUtil;
 import net.sourceforge.myvd.server.apacheds.MyVDInterceptor;
 import net.sourceforge.myvd.server.apacheds.MyVDReferalManager;
 
+import org.apache.directory.api.ldap.model.entry.DefaultAttribute;
 import org.apache.directory.api.ldap.model.name.Dn;
 import org.apache.directory.api.ldap.model.schema.SchemaManager;
 import org.apache.directory.api.ldap.model.schema.registries.SchemaLoader;
@@ -242,11 +246,19 @@ public class Server {
         directoryService.getChangeLog().setEnabled( false );
         directoryService.setDenormalizeOpAttrsEnabled( true );
         
-        
+        String binaryAttributes = this.props.getProperty("server.binaryAttribs","");
+		StringTokenizer toker = new StringTokenizer(binaryAttributes);
+		
+		HashSet<String> binaryAttrs = new HashSet<String>();
+		while (toker.hasMoreTokens()) {
+			String token = toker.nextToken().toLowerCase();
+			binaryAttrs.add(token);
+			ApacheDSUtil.addBinaryAttributeToSchema(new DefaultAttribute(token), directoryService.getSchemaManager());
+		}
         
         
         List<Interceptor> newlist = new ArrayList<Interceptor>();
-        newlist.add(new MyVDInterceptor(globalChain,router,directoryService.getSchemaManager()));
+        newlist.add(new MyVDInterceptor(globalChain,router,directoryService.getSchemaManager(),binaryAttrs));
         
         directoryService.setInterceptors(newlist);
         
@@ -320,6 +332,7 @@ public class Server {
         ldapServer.start();
         ((ExtendedRequestHandler) ldapServer.getExtendedRequestHandler()).init(globalChain, router);
 		
+        
 		
 		
 	}
