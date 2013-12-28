@@ -3,6 +3,7 @@ package net.sourceforge.myvd.server.apacheds;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import net.sourceforge.myvd.chain.AddInterceptorChain;
 import net.sourceforge.myvd.chain.BindInterceptorChain;
@@ -33,6 +34,7 @@ import org.apache.directory.api.ldap.model.entry.Value;
 import org.apache.directory.api.ldap.model.exception.LdapException;
 import org.apache.directory.api.ldap.model.exception.LdapInvalidSearchFilterException;
 import org.apache.directory.api.ldap.model.filter.AndNode;
+import org.apache.directory.api.ldap.model.filter.AssertionType;
 import org.apache.directory.api.ldap.model.filter.EqualityNode;
 import org.apache.directory.api.ldap.model.filter.ExprNode;
 import org.apache.directory.api.ldap.model.filter.FilterEncoder;
@@ -45,6 +47,7 @@ import org.apache.directory.api.ldap.model.filter.PresenceNode;
 import org.apache.directory.api.ldap.model.filter.SubstringNode;
 import org.apache.directory.api.ldap.model.message.ResultCodeEnum;
 import org.apache.directory.api.ldap.model.name.Rdn;
+import org.apache.directory.api.ldap.model.schema.AttributeType;
 import org.apache.directory.api.ldap.model.schema.AttributeTypeOptions;
 import org.apache.directory.api.ldap.model.schema.SchemaManager;
 import org.apache.directory.api.util.StringConstants;
@@ -81,11 +84,13 @@ public class MyVDInterceptor extends BaseInterceptor {
 	InsertChain globalChain;
 	Router router;
 	SchemaManager schemaManager;
+	HashSet<String> binaryAttrs;
 	
-	public MyVDInterceptor(InsertChain globalChain,Router router,SchemaManager schemaManager) {
+	public MyVDInterceptor(InsertChain globalChain,Router router,SchemaManager schemaManager,HashSet<String> binaryAttrs) {
 		this.globalChain = globalChain;
 		this.router = router;
 		this.schemaManager = schemaManager;
+		this.binaryAttrs = binaryAttrs;
 	}
 	
 	@Override
@@ -727,7 +732,43 @@ private Filter generateMyVDFilter(ExprNode root) {
 			return new FilterNode(FilterType.PRESENCE,"objectClass","*");
 		} else if (root instanceof EqualityNode) {
 			EqualityNode n = (EqualityNode) root;
-			return new FilterNode(FilterType.EQUALS,n.getAttribute(),n.getValue().getString());
+			AttributeType at = n.getAttributeType();
+			
+			boolean isBinary = false;
+			
+			if (at == null) {
+				
+				
+				try {
+					String oid = this.schemaManager.getAttributeTypeRegistry().getOidByName(n.getAttribute());
+					at = this.schemaManager.getAttributeType(oid);
+					isBinary = ! at.getSyntax().isHumanReadable();
+				} catch (LdapException e) {
+					isBinary = this.binaryAttrs.contains(n.getAttribute().toLowerCase());
+				}
+			} else {
+				isBinary = ! at.getSyntax().isHumanReadable();
+			}
+			
+			if (isBinary) {
+				byte[] enc = n.getValue().getBytes();
+				
+				StringBuilder sb = new StringBuilder(enc.length * 2);
+				
+				for (int i=0; i< enc.length; i++)
+	    			
+    			{
+    			
+    			sb.append(String.format("\\%02x", enc[i]));
+    			
+    			}
+				
+				return new FilterNode(FilterType.EQUALS,n.getAttribute(),sb.toString());
+				
+			} else {
+				return new FilterNode(FilterType.EQUALS,n.getAttribute(),n.getValue().getString());
+			}
+			
 		} else if (root instanceof GreaterEqNode) {
 			GreaterEqNode n = (GreaterEqNode) root;
 			return new FilterNode(FilterType.GREATER_THEN,n.getAttribute(),n.getValue().getString());

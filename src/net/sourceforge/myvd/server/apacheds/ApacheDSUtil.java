@@ -14,7 +14,7 @@ public class ApacheDSUtil {
 	private static final Logger LOG = LoggerFactory.getLogger( ApacheDSUtil.class );
 	
     public static String generateRandomOID(SchemaManager schemaManager) {
-		String base ="9.8.7.6.5.";
+		String base ="1.2.840.113556.1.4.";
 		int num = (int) (Math.random() * 5000);
 		
 		StringBuffer b = new StringBuffer(base);
@@ -39,6 +39,26 @@ public class ApacheDSUtil {
     	at.setEquality(uidAT.getEquality());
     	
     	at.setSubstring(uidAT.getSubstring());
+    	at.setSchemaName(uidAT.getSchemaName());
+    	at.setSpecification(uidAT.getSpecification());
+    	at.setUsage(uidAT.getUsage());
+    	
+    	LOG.warn("Creating dynamic schema entry : '{}' {}", at.getName(), at.getOid());
+    	
+    	schemaManager.add(at);
+    	return at;
+    }
+    
+    public static AttributeType addBinaryAttributeToSchema(Attribute attribute,SchemaManager schemaManager) throws LdapException {
+    	String newOID = generateRandomOID(schemaManager);
+    	MutableAttributeType at = new MutableAttributeType(newOID);
+    	
+    	// base new attributes on javaSerializedData
+    	AttributeType uidAT = schemaManager.getAttributeType("1.3.6.1.4.1.42.2.27.4.1.8");
+    	at.setNames(attribute.getId());
+    	at.setSyntax(uidAT.getSyntax());
+    	at.setSingleValued(false);
+    	
     	at.setSchemaName(uidAT.getSchemaName());
     	at.setSpecification(uidAT.getSpecification());
     	at.setUsage(uidAT.getUsage());
