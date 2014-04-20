@@ -116,6 +116,7 @@ public class TestStartServer extends TestCase {
 		//this.globalChain = server.getGlobalChain();
 		//this.router = server.getRouter();
 		
+		System.setProperty("javax.net.ssl.trustStore", System.getenv("PROJ_DIR") + "/test/TestServer/testconfig.jks");
 		
  	}
 	

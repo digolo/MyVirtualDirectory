@@ -57,6 +57,7 @@ import net.sourceforge.myvd.types.SessionVariables;
 
 
 
+
 import com.novell.ldap.LDAPAttribute;
 import com.novell.ldap.LDAPAttributeSet;
 import com.novell.ldap.LDAPConnection;
@@ -107,7 +108,7 @@ public class TestDisableNamespace extends TestCase {
 		this.server = new StartMyVD();
 		this.server.startServer(System.getenv("PROJ_DIR") + "/test/TestServer/testconfigdisable.props",50983);
 		
-		
+		System.setProperty("javax.net.ssl.trustStore", System.getenv("PROJ_DIR") + "/test/TestServer/testconfig.jks");
 		//server = new Server(System.getenv("PROJ_DIR") + "/test/TestServer/testconfig.props");
 		//server.startServer();
 		
