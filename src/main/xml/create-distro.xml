@@ -5,23 +5,41 @@
 								<id>myvd</id>
 								<formats>
 									<format>dir</format>
-									<format>tar.bz2</format>
-									<format>zip</format>
+									
 								</formats>
 								<fileSets>
 									<fileSet>
-										<directory>${project.basedir}</directory>
-										<includes>
-											<include>README*</include>
-											<include>LICENSE*</include>
-											<include>NOTICE*</include>
-											<include>pom.xml</include>
-										</includes>
+										<directory>${project.basedir}/dist/bin</directory>
+										<outputDirectory>/bin</outputDirectory>	
 										<useDefaultExcludes>true</useDefaultExcludes>
 									</fileSet>
 									<fileSet>
-										<directory>${project.build.sourceDirectory}/src</directory>
+										<directory>${project.basedir}/dist/conf</directory>
+										<outputDirectory>/conf</outputDirectory>	
 										<useDefaultExcludes>true</useDefaultExcludes>
 									</fileSet>
+									<fileSet>
+										<directory>${project.basedir}/dist/quickStarts</directory>
+										<outputDirectory>/quickStarts</outputDirectory>	
+										<useDefaultExcludes>true</useDefaultExcludes>
+									</fileSet>
+									<fileSet>
+										<directory>${project.basedir}/dist/samples</directory>
+										<outputDirectory>/samples</outputDirectory>	
+										<useDefaultExcludes>true</useDefaultExcludes>
+									</fileSet>
+									<fileSet>
+										<directory>${project.basedir}/dist/logs</directory>
+										<outputDirectory>/logs</outputDirectory>	
+										<useDefaultExcludes>true</useDefaultExcludes>
+									</fileSet>
+									
 								</fileSets>
+								<dependencySets>
+									<dependencySet>
+										<outputDirectory>/lib</outputDirectory>
+										<useProjectArtifact>true</useProjectArtifact>
+									</dependencySet>
+								</dependencySets>
+								
 							</assembly>
