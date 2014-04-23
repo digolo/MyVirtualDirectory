@@ -70,6 +70,61 @@ import com.novell.ldap.LDAPSearchRequest;
 import com.novell.ldap.util.DN;
 import com.novell.ldap.util.RDN;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.Properties;
+import java.util.StringTokenizer;
+import java.util.Vector;
+
+import javax.sql.DataSource;
+
+import org.apache.commons.dbcp.cpdsadapter.DriverAdapterCPDS;
+import org.apache.commons.dbcp.datasources.SharedPoolDataSource;
+import org.apache.log4j.Logger;
+
+import net.sourceforge.myvd.chain.AddInterceptorChain;
+import net.sourceforge.myvd.chain.BindInterceptorChain;
+import net.sourceforge.myvd.chain.CompareInterceptorChain;
+import net.sourceforge.myvd.chain.DeleteInterceptorChain;
+import net.sourceforge.myvd.chain.ExetendedOperationInterceptorChain;
+import net.sourceforge.myvd.chain.InterceptorChain;
+import net.sourceforge.myvd.chain.ModifyInterceptorChain;
+import net.sourceforge.myvd.chain.PostSearchCompleteInterceptorChain;
+import net.sourceforge.myvd.chain.PostSearchEntryInterceptorChain;
+import net.sourceforge.myvd.chain.RenameInterceptorChain;
+import net.sourceforge.myvd.chain.SearchInterceptorChain;
+import net.sourceforge.myvd.core.NameSpace;
+import net.sourceforge.myvd.inserts.Insert;
+import net.sourceforge.myvd.types.Attribute;
+import net.sourceforge.myvd.types.Bool;
+import net.sourceforge.myvd.types.DistinguishedName;
+import net.sourceforge.myvd.types.Entry;
+import net.sourceforge.myvd.types.ExtendedOperation;
+import net.sourceforge.myvd.types.Filter;
+import net.sourceforge.myvd.types.FilterNode;
+import net.sourceforge.myvd.types.FilterType;
+import net.sourceforge.myvd.types.Int;
+import net.sourceforge.myvd.types.Password;
+import net.sourceforge.myvd.types.Results;
+import net.sourceforge.myvd.util.EntryUtil;
+import net.sourceforge.myvd.util.IteratorEntrySet;
+
+import com.novell.ldap.LDAPConstraints;
+import com.novell.ldap.LDAPException;
+import com.novell.ldap.LDAPModification;
+import com.novell.ldap.LDAPSearchConstraints;
+import com.novell.ldap.LDAPSearchRequest;
+import com.novell.ldap.util.DN;
+import com.novell.ldap.util.RDN;
+
 public class JdbcInsert implements Insert,JdbcPool {
 
 	static Logger logger = Logger.getLogger(JdbcInsert.class);
@@ -534,6 +589,9 @@ public class JdbcInsert implements Insert,JdbcPool {
 			PreparedStatement ps = con.prepareStatement(querySQL);
 			
 			for (int i=0,m=vals.size();i<m;i++) {
+				if (logger.isDebugEnabled()) {
+					logger.debug("Adding parameter '" + (i + 1) + "'='" + vals.get(i));
+				}
 				ps.setObject(i + 1, vals.get(i));
 			}
 			
