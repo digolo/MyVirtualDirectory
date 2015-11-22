@@ -15,7 +15,7 @@ import org.apache.directory.api.ldap.model.exception.LdapException;
 import org.apache.directory.api.ldap.model.exception.OperationAbandonedException;
 import org.apache.directory.api.ldap.model.schema.SchemaManager;
 import org.apache.directory.server.core.api.entry.ClonedServerEntry;
-import org.apache.directory.server.core.api.entry.ClonedServerEntrySearch;
+
 import org.apache.directory.server.core.api.entry.ServerEntryUtils;
 import org.apache.directory.server.core.api.filtering.EntryFilter;
 import org.apache.directory.server.core.api.filtering.EntryFilteringCursor;
@@ -371,7 +371,7 @@ public class MyVDBaseCursor extends AbstractCursor<Entry> implements EntryFilter
             }
             else
             {
-                tempResult = new ClonedServerEntrySearch( tempEntry );
+                tempResult = new ClonedServerEntry( tempEntry );
             }
 
             /*
@@ -449,7 +449,7 @@ public class MyVDBaseCursor extends AbstractCursor<Entry> implements EntryFilter
                 continue;
             }
 
-            tempResult = new ClonedServerEntrySearch( entry );
+            tempResult = new ClonedServerEntry( entry );
 
             /*
              * O P T I M I Z A T I O N

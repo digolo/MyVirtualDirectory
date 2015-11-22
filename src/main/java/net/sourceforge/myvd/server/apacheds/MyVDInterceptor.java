@@ -181,7 +181,11 @@ public class MyVDInterceptor extends BaseInterceptor {
 			IoSession ioSession) {
 		
 		
-		SslFilter filter = (SslFilter) ioSession.getFilterChain().get("sslFilter");
+		SslFilter filter = null;
+		
+		if (ioSession != null) { 
+			filter = (SslFilter) ioSession.getFilterChain().get("sslFilter");
+		}
 		
 		if (filter != null) {
 			SSLSession tlssession = filter.getSslSession(ioSession);

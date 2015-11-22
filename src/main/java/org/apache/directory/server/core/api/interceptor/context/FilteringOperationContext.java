@@ -80,7 +80,6 @@ public abstract class FilteringOperationContext extends AbstractOperationContext
     {
         // Default to All User Attributes if we don't have any attributes
         this( session, SchemaConstants.ALL_USER_ATTRIBUTES );
-        
     }
 
 
@@ -253,7 +252,7 @@ public abstract class FilteringOperationContext extends AbstractOperationContext
     }
 
 
-    protected void setReturningAttributes( String... attributeIds )
+    public void setReturningAttributes( String... attributeIds )
     {
     	
     	this.originalAttributeNames = attributeIds;

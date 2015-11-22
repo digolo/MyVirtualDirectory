@@ -192,7 +192,7 @@ public class TestEmbededGroupsSync extends TestCase {
 		}
 		
 		
-		//Thread.sleep(10000);
+		Thread.sleep(10000);
 		
 		
 		res = con.search("cn=North East,ou=groups,dc=domain,dc=com", 0, "(&(objectClass=groupOfUniqueNames)(uniqueMember=uid=tuser4,ou=people,dc=domain,dc=com))", new String[] {}, false);

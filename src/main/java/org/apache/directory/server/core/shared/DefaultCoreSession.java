@@ -20,6 +20,8 @@
 package org.apache.directory.server.core.shared;
 
 
+import java.io.File;
+import java.io.IOException;
 import java.net.SocketAddress;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -28,9 +30,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.directory.api.ldap.extras.controls.SyncRequestValue;
+import jdbm.recman.BaseRecordManager;
+
+import org.apache.directory.api.ldap.extras.controls.syncrepl.syncInfoValue.SyncRequestValue;
 import org.apache.directory.api.ldap.model.constants.AuthenticationLevel;
 import org.apache.directory.api.ldap.model.constants.SchemaConstants;
+import org.apache.directory.api.ldap.model.cursor.Cursor;
+import org.apache.directory.api.ldap.model.cursor.CursorException;
+import org.apache.directory.api.ldap.model.cursor.EmptyCursor;
 import org.apache.directory.api.ldap.model.entry.BinaryValue;
 import org.apache.directory.api.ldap.model.entry.DefaultModification;
 import org.apache.directory.api.ldap.model.entry.Entry;
@@ -47,14 +54,24 @@ import org.apache.directory.api.ldap.model.message.AliasDerefMode;
 import org.apache.directory.api.ldap.model.message.CompareRequest;
 import org.apache.directory.api.ldap.model.message.Control;
 import org.apache.directory.api.ldap.model.message.DeleteRequest;
+import org.apache.directory.api.ldap.model.message.LdapResult;
 import org.apache.directory.api.ldap.model.message.ModifyDnRequest;
 import org.apache.directory.api.ldap.model.message.ModifyRequest;
+import org.apache.directory.api.ldap.model.message.ResultCodeEnum;
+import org.apache.directory.api.ldap.model.message.ResultResponse;
 import org.apache.directory.api.ldap.model.message.SearchRequest;
 import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.api.ldap.model.message.UnbindRequest;
+import org.apache.directory.api.ldap.model.message.controls.SortKey;
+import org.apache.directory.api.ldap.model.message.controls.SortRequest;
+import org.apache.directory.api.ldap.model.message.controls.SortResponse;
+import org.apache.directory.api.ldap.model.message.controls.SortResponseControlImpl;
+import org.apache.directory.api.ldap.model.message.controls.SortResultCode;
 import org.apache.directory.api.ldap.model.name.Dn;
 import org.apache.directory.api.ldap.model.name.Rdn;
 import org.apache.directory.api.ldap.model.schema.AttributeType;
+import org.apache.directory.api.ldap.model.schema.MatchingRule;
+import org.apache.directory.api.ldap.model.schema.SchemaManager;
 import org.apache.directory.api.util.Strings;
 import org.apache.directory.server.constants.ServerDNConstants;
 import org.apache.directory.server.core.api.CoreSession;
@@ -529,7 +546,7 @@ public class DefaultCoreSession implements CoreSession
     /* (non-Javadoc)
      * @see org.apache.directory.server.core.CoreSession#list(org.apache.directory.api.ldap.model.name.Dn, org.apache.directory.api.ldap.model.message.AliasDerefMode, java.util.Set)
      */
-    public EntryFilteringCursor list( Dn dn, AliasDerefMode aliasDerefMode,
+    public Cursor<Entry> list( Dn dn, AliasDerefMode aliasDerefMode,
         String... returningAttributes ) throws LdapException
     {
         OperationManager operationManager = directoryService.getOperationManager();
@@ -806,7 +823,7 @@ public class DefaultCoreSession implements CoreSession
     /**
      * {@inheritDoc}
      */
-    public EntryFilteringCursor search( Dn dn, String filter ) throws LdapException
+    public Cursor<Entry> search( Dn dn, String filter ) throws LdapException
     {
         return search( dn, filter, true );
     }
@@ -815,7 +832,7 @@ public class DefaultCoreSession implements CoreSession
     /**
      * {@inheritDoc}
      */
-    public EntryFilteringCursor search( Dn dn, String filter, boolean ignoreReferrals ) throws LdapException
+    public Cursor<Entry> search( Dn dn, String filter, boolean ignoreReferrals ) throws LdapException
     {
         OperationManager operationManager = directoryService.getOperationManager();
         ExprNode filterNode = null;
@@ -841,7 +858,7 @@ public class DefaultCoreSession implements CoreSession
     /* (non-Javadoc)
      * @see org.apache.directory.server.core.CoreSession#search(org.apache.directory.api.ldap.model.name.Dn, org.apache.directory.api.ldap.model.filter.SearchScope, org.apache.directory.api.ldap.model.filter.ExprNode, org.apache.directory.api.ldap.message.AliasDerefMode, java.util.Set)
      */
-    public EntryFilteringCursor search( Dn dn, SearchScope scope, ExprNode filter, AliasDerefMode aliasDerefMode,
+    public Cursor<Entry> search( Dn dn, SearchScope scope, ExprNode filter, AliasDerefMode aliasDerefMode,
         String... returningAttributes ) throws LdapException
     {
         OperationManager operationManager = directoryService.getOperationManager();
@@ -1080,14 +1097,16 @@ public class DefaultCoreSession implements CoreSession
     }
 
 
-    public EntryFilteringCursor search( SearchRequest searchRequest ) throws LdapException
+    public Cursor<Entry> search( SearchRequest searchRequest ) throws LdapException
     {
         SearchOperationContext searchContext = new SearchOperationContext( this, searchRequest );
         searchContext.setSyncreplSearch( searchRequest.getControls().containsKey( SyncRequestValue.OID ) );
 
         OperationManager operationManager = directoryService.getOperationManager();
 
-        EntryFilteringCursor cursor = null;
+        ResultResponse done = searchRequest.getResultResponse();
+        
+        Cursor<Entry> cursor = null;
 
         try
         {
@@ -1095,11 +1114,16 @@ public class DefaultCoreSession implements CoreSession
         }
         catch ( LdapException e )
         {
-            searchRequest.getResultResponse().addAllControls( searchContext.getResponseControls() );
+            done.addAllControls( searchContext.getResponseControls() );
             throw e;
         }
+        catch ( Exception e )
+        {
+            done.addAllControls( searchContext.getResponseControls() );
+            throw new LdapException( e );
+        }
 
-        searchRequest.getResultResponse().addAllControls( searchContext.getResponseControls() );
+        done.addAllControls( searchContext.getResponseControls() );
 
         return cursor;
     }
