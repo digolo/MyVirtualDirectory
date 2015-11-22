@@ -194,7 +194,8 @@ public class LdapServer extends DirectoryBackedService
     private String certificatePassword;
 
     /** The extended operation handlers. */
-    private final Collection<ExtendedOperationHandler> extendedOperationHandlers = new ArrayList<ExtendedOperationHandler>();
+    private final Collection<ExtendedOperationHandler<? extends ExtendedRequest, ? extends ExtendedResponse>> extendedOperationHandlers =
+        new ArrayList<ExtendedOperationHandler<? extends ExtendedRequest, ? extends ExtendedResponse>>();
 
     /** The supported authentication mechanisms. */
     private Map<String, MechanismHandler> saslMechanismHandlers = new HashMap<String, MechanismHandler>();
@@ -270,6 +271,7 @@ public class LdapServer extends DirectoryBackedService
     private int pingerSleepTime;
 
     /** the list of cipher suites to be used in LDAPS and StartTLS */
+    @Deprecated
     private List<String> enabledCipherSuites = new ArrayList<String>();
 
 	private boolean tlsWantClientAuth;
@@ -373,8 +375,6 @@ public class LdapServer extends DirectoryBackedService
     /**
      * loads the digital certificate either from a keystore file or from the admin entry in DIT
      */
-    // This will suppress PMD.EmptyCatchBlock warnings in this method
-    @SuppressWarnings("PMD.EmptyCatchBlock")
     public void loadKeyStore() throws Exception
     {
         if ( Strings.isEmpty( keystoreFile ) )
@@ -398,18 +398,9 @@ public class LdapServer extends DirectoryBackedService
         else
         {
             keyStore = KeyStore.getInstance( KeyStore.getDefaultType() );
-            FileInputStream fis = null;
-            try
+            try ( FileInputStream fis = new FileInputStream( keystoreFile ) )
             {
-                fis = new FileInputStream( keystoreFile );
                 keyStore.load( fis, null );
-            }
-            finally
-            {
-                if ( fis != null )
-                {
-                    fis.close();
-                }
             }
         }
 
@@ -421,7 +412,7 @@ public class LdapServer extends DirectoryBackedService
             algorithm = KeyManagerFactory.getDefaultAlgorithm();
         }
 
-        /*
+        
         keyManagerFactory = KeyManagerFactory.getInstance( algorithm );
 
         if ( Strings.isEmpty( certificatePassword ) )
@@ -431,7 +422,7 @@ public class LdapServer extends DirectoryBackedService
         else
         {
             keyManagerFactory.init( keyStore, certificatePassword.toCharArray() );
-        }*/
+        }
     }
 
 
@@ -453,13 +444,27 @@ public class LdapServer extends DirectoryBackedService
         loadKeyStore();
 
         String sslFilterName = "sslFilter";
+
         for ( IoFilterChainBuilder chainBuilder : chainBuilders )
         {
             DefaultIoFilterChainBuilder dfcb = ( ( DefaultIoFilterChainBuilder ) chainBuilder );
+
             if ( dfcb.contains( sslFilterName ) )
             {
+                // Get the TcpTransport
+                TcpTransport tcpTransport = null;
+
+                for ( Transport transport : getTransports() )
+                {
+                    if ( transport instanceof TcpTransport )
+                    {
+                        tcpTransport = ( TcpTransport ) transport;
+                        break;
+                    }
+                }
+
                 DefaultIoFilterChainBuilder newChain = ( DefaultIoFilterChainBuilder ) LdapsInitializer
-                    .init( this );
+                    .init( this, tcpTransport );
                 dfcb.replace( sslFilterName, newChain.get( sslFilterName ) );
                 newChain = null;
             }
@@ -497,7 +502,7 @@ public class LdapServer extends DirectoryBackedService
 
         PartitionNexus nexus = getDirectoryService().getPartitionNexus();
 
-        for ( ExtendedOperationHandler h : extendedOperationHandlers )
+        for ( ExtendedOperationHandler<? extends ExtendedRequest, ? extends ExtendedResponse> h : extendedOperationHandlers )
         {
             LOG.info( "Added Extended Request Handler: " + h.getOid() );
             h.setLdapServer( this );
@@ -508,9 +513,6 @@ public class LdapServer extends DirectoryBackedService
 
         // Install the replication handler if we have one
         startReplicationProducer();
-
-        // And start the replication consumers on this server
-        startReplicationConsumers();
 
         for ( Transport transport : transports )
         {
@@ -524,7 +526,7 @@ public class LdapServer extends DirectoryBackedService
 
             if ( transport.isSSLEnabled() )
             {
-                chain = LdapsInitializer.init( this );
+                chain = LdapsInitializer.init( this, ( TcpTransport ) transport );
             }
             else
             {
@@ -562,6 +564,10 @@ public class LdapServer extends DirectoryBackedService
 
             startNetwork( transport, chain );
         }
+
+        // And start the replication consumers on this server
+        // these should be started only after starting the network see DIRSERVER-1894
+        startReplicationConsumers();
 
         started = true;
 
@@ -726,9 +732,6 @@ public class LdapServer extends DirectoryBackedService
             {
                 consumer.init( getDirectoryService() );
 
-                // A counter to be decremented when the consumer thread is started
-                final CountDownLatch counter = new CountDownLatch( 1 );
-
                 Runnable consumerTask = new Runnable()
                 {
                     public void run()
@@ -748,8 +751,6 @@ public class LdapServer extends DirectoryBackedService
 
                                 if ( isConnected )
                                 {
-                                    // Ok, we are connected, we can signal the parent that all is ok
-                                    counter.countDown();
                                     pingerThread.addConsumer( consumer );
 
                                     // We are now connected, start the replication
@@ -781,9 +782,6 @@ public class LdapServer extends DirectoryBackedService
                 Thread consumerThread = new Thread( consumerTask );
                 consumerThread.setDaemon( true );
                 consumerThread.start();
-                
-                // Wait for the consumer thread to be started
-                counter.await( 60, TimeUnit.SECONDS );
             }
         }
     }
@@ -840,7 +838,9 @@ public class LdapServer extends DirectoryBackedService
      * @param eoh an extended operation handler
      * @throws Exception on failure to add the handler
      */
-    public void addExtendedOperationHandler( ExtendedOperationHandler eoh ) throws Exception
+    public void addExtendedOperationHandler(
+        ExtendedOperationHandler<? extends ExtendedRequest, ? extends ExtendedResponse> eoh )
+        throws Exception
     {
         if ( started )
         {
@@ -868,15 +868,17 @@ public class LdapServer extends DirectoryBackedService
         //            DefaultPartitionNexus nexus = getDirectoryService().getPartitionNexus();
         //            nexus.unregisterSupportedExtensions( eoh.getExtensionOids() );
 
-        ExtendedOperationHandler handler = null;
-        for ( ExtendedOperationHandler h : extendedOperationHandlers )
+        ExtendedOperationHandler<?, ?> handler = null;
+
+        for ( ExtendedOperationHandler<?, ?> extendedOperationHandler : extendedOperationHandlers )
         {
-            if ( h.getOid().equals( oid ) )
+            if ( extendedOperationHandler.getOid().equals( oid ) )
             {
-                handler = h;
+                handler = extendedOperationHandler;
                 break;
             }
         }
+
         extendedOperationHandlers.remove( handler );
     }
 
@@ -889,14 +891,14 @@ public class LdapServer extends DirectoryBackedService
      * request handler
      * @return the exnteded operation handler
      */
-    public ExtendedOperationHandler<ExtendedRequest<ExtendedResponse>, ExtendedResponse>
-        getExtendedOperationHandler( String oid )
+    public ExtendedOperationHandler<? extends ExtendedRequest, ? extends ExtendedResponse> getExtendedOperationHandler(
+        String oid )
     {
-        for ( ExtendedOperationHandler<ExtendedRequest<ExtendedResponse>, ExtendedResponse> h : extendedOperationHandlers )
+        for ( ExtendedOperationHandler<? extends ExtendedRequest, ? extends ExtendedResponse> extendedOperationHandler : extendedOperationHandlers )
         {
-            if ( h.getOid().equals( oid ) )
+            if ( extendedOperationHandler.getOid().equals( oid ) )
             {
-                return h;
+                return extendedOperationHandler;
             }
         }
 
@@ -989,9 +991,10 @@ public class LdapServer extends DirectoryBackedService
      *
      * @return A collection of {@link ExtendedOperationHandler}s.
      */
-    public Collection<ExtendedOperationHandler> getExtendedOperationHandlers()
+    public Collection<ExtendedOperationHandler<? extends ExtendedRequest, ? extends ExtendedResponse>> getExtendedOperationHandlers()
     {
-        return new ArrayList<ExtendedOperationHandler>( extendedOperationHandlers );
+        return new ArrayList<ExtendedOperationHandler<? extends ExtendedRequest, ? extends ExtendedResponse>>(
+            extendedOperationHandlers );
     }
 
 
@@ -1000,7 +1003,8 @@ public class LdapServer extends DirectoryBackedService
      *
      * @param handlers A collection of {@link ExtendedOperationHandler}s.
      */
-    public void setExtendedOperationHandlers( Collection<ExtendedOperationHandler> handlers )
+    public void setExtendedOperationHandlers(
+        Collection<ExtendedOperationHandler<ExtendedRequest, ExtendedResponse>> handlers )
     {
         this.extendedOperationHandlers.clear();
         this.extendedOperationHandlers.addAll( handlers );
@@ -1332,7 +1336,7 @@ public class LdapServer extends DirectoryBackedService
     /**
      * @return The MessageReceived handler for the ExtendedRequest
      */
-    public LdapRequestHandler<ExtendedRequest<ExtendedResponse>> getExtendedRequestHandler()
+    public LdapRequestHandler<ExtendedRequest> getExtendedRequestHandler()
     {
         return extendedRequestHandler;
     }
@@ -1749,9 +1753,13 @@ public class LdapServer extends DirectoryBackedService
 
     /**
      * Gives the list of enabled cipher suites
+     * <br>
+     * This method has been deprecated, please set this list in the TcpTransport class
+     * </br>
      * 
-     * @return
+     * @return The list of ciphers that can be used
      */
+    @Deprecated
     public List<String> getEnabledCipherSuites()
     {
         return enabledCipherSuites;
@@ -1760,9 +1768,13 @@ public class LdapServer extends DirectoryBackedService
 
     /**
      * Sets the list of cipher suites to be used in LDAPS and StartTLS
+     * <br>
+     * This method has been deprecated, please set this list in the TcpTransport class
+     * </br>
      * 
      * @param enabledCipherSuites if null the default cipher suites will be used
      */
+    @Deprecated
     public void setEnabledCipherSuites( List<String> enabledCipherSuites )
     {
         this.enabledCipherSuites = enabledCipherSuites;

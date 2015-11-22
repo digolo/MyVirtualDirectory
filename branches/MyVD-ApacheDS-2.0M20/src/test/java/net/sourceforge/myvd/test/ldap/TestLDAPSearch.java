@@ -828,7 +828,7 @@ public class TestLDAPSearch extends TestCase {
 		LDAPSearchResults res = con
 				.search("o=mycompany,c=us",
 						2,
-						"(&(!(objectClass=organizationalUnit))(!(cn=Test Cust))(!(objectClass=domain)))",
+						"(&(!(objectClass=organizationalUnit))(!(cn=Test Cust))(!(objectClass=domain))(!(cn=Test Group)))",
 						new String[0], false);
 
 		/*
@@ -891,7 +891,7 @@ public class TestLDAPSearch extends TestCase {
 		LDAPSearchResults res = con
 				.search("o=mycompany,c=us",
 						2,
-						"(&(!(cn=Test Cust))(!(|(objectClass=organizationalUnit)(objectClass=domain))))",
+						"(&(!(cn=Test Group))(!(cn=Test Cust))(!(|(objectClass=organizationalUnit)(objectClass=domain))))",
 						new String[0], false);
 
 		/*

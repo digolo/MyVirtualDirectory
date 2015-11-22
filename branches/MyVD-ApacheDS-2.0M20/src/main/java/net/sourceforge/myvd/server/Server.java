@@ -29,6 +29,7 @@ import java.util.StringTokenizer;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 
+import net.sf.ehcache.config.CacheConfiguration;
 import net.sourceforge.myvd.core.InsertChain;
 import net.sourceforge.myvd.router.Router;
 import net.sourceforge.myvd.server.apacheds.ApacheDSUtil;
@@ -39,18 +40,20 @@ import org.apache.directory.api.ldap.model.entry.DefaultAttribute;
 import org.apache.directory.api.ldap.model.name.Dn;
 import org.apache.directory.api.ldap.model.schema.SchemaManager;
 import org.apache.directory.api.ldap.model.schema.registries.SchemaLoader;
-import org.apache.directory.api.ldap.schemaextractor.SchemaLdifExtractor;
-import org.apache.directory.api.ldap.schemaextractor.impl.DefaultSchemaLdifExtractor;
-import org.apache.directory.api.ldap.schemaloader.LdifSchemaLoader;
-import org.apache.directory.api.ldap.schemamanager.impl.DefaultSchemaManager;
+import org.apache.directory.api.ldap.schema.extractor.SchemaLdifExtractor;
+import org.apache.directory.api.ldap.schema.extractor.impl.DefaultSchemaLdifExtractor;
+import org.apache.directory.api.ldap.schema.loader.LdifSchemaLoader;
+import org.apache.directory.api.ldap.schema.manager.impl.DefaultSchemaManager;
 import org.apache.directory.api.util.exception.Exceptions;
 import org.apache.directory.server.constants.ServerDNConstants;
 import org.apache.directory.server.core.DefaultDirectoryService;
+import org.apache.directory.server.core.api.DnFactory;
 import org.apache.directory.server.core.api.InstanceLayout;
 import org.apache.directory.server.core.api.interceptor.Interceptor;
 import org.apache.directory.server.core.api.schema.SchemaPartition;
 import org.apache.directory.server.core.partition.impl.btree.jdbm.JdbmPartition;
 import org.apache.directory.server.core.partition.ldif.LdifPartition;
+import org.apache.directory.server.core.shared.DefaultDnFactory;
 import org.apache.directory.server.ldap.LdapServer;
 import org.apache.directory.server.ldap.handlers.request.ExtendedRequestHandler;
 import org.apache.directory.server.protocol.shared.transport.TcpTransport;
@@ -68,7 +71,7 @@ public class Server {
 	static Logger logger;
 	
 
-	public final static String VERSION = "0.9.4.12";
+	public final static String VERSION = "1.0.0";
 	
 	String configFile;
 	Properties props;
@@ -83,7 +86,8 @@ public class Server {
 
 	private LdapServer ldapServer;
 
-    
+    private DnFactory dnFactory;
+	
 	public InsertChain getGlobalChain() {
 		return globalChain;
 	}
@@ -144,8 +148,12 @@ public class Server {
 
         directoryService.setSchemaManager( schemaManager );
         
+        if (this.dnFactory == null) {
+        	this.dnFactory = new DefaultDnFactory(schemaManager,new net.sf.ehcache.Cache(new CacheConfiguration("myvd-apacheds-dns",10000)));
+        }
+        
         // Init the LdifPartition with schema
-        LdifPartition schemaLdifPartition = new LdifPartition( schemaManager );
+        LdifPartition schemaLdifPartition = new LdifPartition( schemaManager, this.dnFactory );
         schemaLdifPartition.setPartitionPath( schemaPartitionDirectory.toURI() );
 
         // The schema partition
@@ -264,7 +272,7 @@ public class Server {
         // this is a MANDATORY partition
         // DO NOT add this via addPartition() method, trunk code complains about duplicate partition
         // while initializing 
-        JdbmPartition systemPartition = new JdbmPartition(directoryService.getSchemaManager());
+        JdbmPartition systemPartition = new JdbmPartition(directoryService.getSchemaManager(),this.dnFactory);
         systemPartition.setId( "system" );
         systemPartition.setPartitionPath( new File( directoryService.getInstanceLayout().getPartitionsDirectory(), systemPartition.getId() ).toURI() );
         systemPartition.setSuffixDn( new Dn( ServerDNConstants.SYSTEM_DN ) );
@@ -357,6 +365,13 @@ public class Server {
 				TcpTransport ldapsTransport = new TcpTransport(Integer.parseInt(portString));
 				ldapsTransport.enableSSL(true);
 				
+				if (clientMode.equalsIgnoreCase("want")) {
+					ldapsTransport.setWantClientAuth(true);
+				}
+				
+				if (clientMode.equalsIgnoreCase("need")) {
+					ldapsTransport.setNeedClientAuth(true);
+				}
 				
 				
 				transports.add(ldapsTransport);

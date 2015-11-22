@@ -26,6 +26,7 @@ import java.util.HashMap;
 import net.sourceforge.myvd.chain.ExetendedOperationInterceptorChain;
 import net.sourceforge.myvd.core.InsertChain;
 import net.sourceforge.myvd.router.Router;
+import net.sourceforge.myvd.server.apacheds.MyVDExtendedResponse;
 import net.sourceforge.myvd.types.DistinguishedName;
 import net.sourceforge.myvd.types.ExtendedOperation;
 import net.sourceforge.myvd.types.Password;
@@ -37,6 +38,7 @@ import org.apache.directory.api.ldap.model.message.ExtendedRequest;
 import org.apache.directory.api.ldap.model.message.ExtendedResponse;
 import org.apache.directory.api.ldap.model.message.LdapResult;
 import org.apache.directory.api.ldap.model.message.ResultCodeEnum;
+import org.apache.directory.api.ldap.model.message.ResultResponse;
 import org.apache.directory.server.ldap.ExtendedOperationHandler;
 import org.apache.directory.server.ldap.LdapSession;
 import org.apache.directory.server.ldap.handlers.LdapRequestHandler;
@@ -50,7 +52,7 @@ import com.novell.ldap.LDAPExtendedOperation;
  *
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  */
-public class ExtendedRequestHandler extends LdapRequestHandler<ExtendedRequest<ExtendedResponse>>
+public class ExtendedRequestHandler<R extends ExtendedRequest> extends LdapRequestHandler<ExtendedRequest>
 {
 	
 	
@@ -65,7 +67,7 @@ public class ExtendedRequestHandler extends LdapRequestHandler<ExtendedRequest<E
     /**
      * {@inheritDoc}
      */
-    public void handle( LdapSession session, ExtendedRequest<ExtendedResponse> req ) throws Exception
+    public void handle( LdapSession session, ExtendedRequest req ) throws Exception
     {
         /*ExtendedOperationHandler<ExtendedRequest<ExtendedResponse>, ExtendedResponse> handler = getLdapServer()
             .getExtendedOperationHandler( req.getRequestName() );
@@ -116,10 +118,14 @@ public class ExtendedRequestHandler extends LdapRequestHandler<ExtendedRequest<E
             ExtendedOperation op = new ExtendedOperation(null, new LDAPExtendedOperation(req.getRequestName(),((ExtendedRequestDecorator) req).getRequestValue()));
             chain.nextExtendedOperations(op,new LDAPConstraints());
             
-            LdapResult result = req.getResultResponse().getLdapResult();
+            MyVDExtendedResponse extResp = new MyVDExtendedResponse(req.getMessageId());
+            
+            
+            LdapResult result = extResp.getLdapResult();
+            result.setMatchedDn(null);
             result.setResultCode( ResultCodeEnum.SUCCESS );
             
-            session.getIoSession().write( req.getResultResponse() );
+            session.getIoSession().write( extResp );
             
             
         }
@@ -130,7 +136,7 @@ public class ExtendedRequestHandler extends LdapRequestHandler<ExtendedRequest<E
             result.setDiagnosticMessage( ResultCodeEnum.OTHER
                 + ": Extended operation handler for the specified EXTENSION_OID (" + req.getRequestName()
                 + ") has failed to process your request:\n" + ExceptionUtils.getStackTrace( e ) );
-            ExtendedResponse resp = req.getResultResponse();
+            ResultResponse resp = req.getResultResponse();
             session.getIoSession().write( resp );
         }
     }

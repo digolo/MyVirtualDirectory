@@ -90,7 +90,6 @@ public class BindRequestHandler extends LdapRequestHandler<BindRequest>
      * @throws Exception If the authentication cannot be done
      */
     // This will suppress PMD.EmptyCatchBlock warnings in this method
-    @SuppressWarnings("PMD.EmptyCatchBlock")
     public void handleSimpleAuth( LdapSession ldapSession, BindRequest bindRequest ) throws Exception
     {
         DirectoryService directoryService = ldapServer.getDirectoryService();
@@ -248,6 +247,11 @@ public class BindRequestHandler extends LdapRequestHandler<BindRequest>
 
             result.setDiagnosticMessage( msg );
             bindRequest.getResultResponse().addAllControls( bindContext.getResponseControls() );
+
+            // Before writing the response, be sure the session is set to anonymous
+            ldapSession.setAnonymous();
+
+            // Write the response
             ldapSession.getIoSession().write( bindRequest.getResultResponse() );
         }
         finally
@@ -359,7 +363,7 @@ public class BindRequestHandler extends LdapRequestHandler<BindRequest>
 
                 // Build the response
                 result.setResultCode( ResultCodeEnum.SASL_BIND_IN_PROGRESS );
-                BindResponse resp = bindRequest.getResultResponse();
+                BindResponse resp = ( BindResponse ) bindRequest.getResultResponse();
 
                 // Store the challenge
                 resp.setServerSaslCreds( tokenBytes );
@@ -439,7 +443,7 @@ public class BindRequestHandler extends LdapRequestHandler<BindRequest>
     private void sendBindSuccess( LdapSession ldapSession, BindRequest bindRequest, byte[] tokenBytes )
     {
         // Return the successful response
-        BindResponse response = bindRequest.getResultResponse();
+        BindResponse response = ( BindResponse ) bindRequest.getResultResponse();
         response.getLdapResult().setResultCode( ResultCodeEnum.SUCCESS );
         response.setServerSaslCreds( tokenBytes );
 

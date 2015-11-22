@@ -80,7 +80,7 @@ import org.apache.directory.server.core.api.DirectoryService;
 import org.apache.directory.server.core.api.InterceptorEnum;
 import org.apache.directory.server.core.api.entry.ClonedServerEntry;
 import org.apache.directory.server.core.api.entry.ServerEntryUtils;
-import org.apache.directory.server.core.api.filtering.BaseEntryFilteringCursor;
+import org.apache.directory.server.core.api.filtering.EntryFilteringCursorImpl;
 import org.apache.directory.server.core.api.filtering.EntryFilter;
 import org.apache.directory.server.core.api.filtering.EntryFilteringCursor;
 import org.apache.directory.server.core.api.interceptor.BaseInterceptor;
@@ -177,23 +177,21 @@ public class SchemaInterceptor extends BaseInterceptor
         topFilter = new TopFilter();
         filters.add( topFilter );
 
-        schemaBaseDn = directoryService.getDnFactory().create( SchemaConstants.OU_SCHEMA );
+        schemaBaseDn = dnFactory.create( SchemaConstants.OU_SCHEMA );
 
         // stuff for dealing with subentries (garbage for now)
-        Value<?> subschemaSubentry = nexus.getRootDse( null ).get( SchemaConstants.SUBSCHEMA_SUBENTRY_AT ).get();
-        subschemaSubentryDn = directoryService.getDnFactory().create( subschemaSubentry.getString() );
-        subschemaSubentryDn.apply( schemaManager );
+        Value<?> subschemaSubentry = nexus.getRootDseValue( SUBSCHEMA_SUBENTRY_AT );
+        subschemaSubentryDn = dnFactory.create( subschemaSubentry.getString() );
         subschemaSubentryDnNorm = subschemaSubentryDn.getNormName();
 
-        schemaModificationAttributesDn = directoryService.getDnFactory().create(
+        schemaModificationAttributesDn = dnFactory.create(
             SchemaConstants.SCHEMA_MODIFICATIONS_DN );
-        schemaModificationAttributesDn.apply( schemaManager );
 
         computeSuperiors();
 
         // Initialize the schema manager
         SchemaLoader loader = directoryService.getSchemaManager().getLoader();
-        schemaSubEntryManager = new SchemaSubentryManager( schemaManager, loader, directoryService.getDnFactory() );
+        schemaSubEntryManager = new SchemaSubentryManager( schemaManager, loader, dnFactory );
 
         if ( IS_DEBUG )
         {
@@ -696,8 +694,12 @@ public class SchemaInterceptor extends BaseInterceptor
     /**
      * Modify an entry, applying the given modifications, and check if it's OK
      */
-    private void checkModifyEntry( Dn dn, Entry currentEntry, List<Modification> mods ) throws LdapException
+    private void checkModifyEntry( ModifyOperationContext modifyContext ) throws LdapException
     {
+        Dn dn = modifyContext.getDn();
+        Entry currentEntry = modifyContext.getEntry();
+        List<Modification> mods = modifyContext.getModItems();
+
         // The first step is to check that the modifications are valid :
         // - the ATs are present in the schema
         // - The value is syntaxically correct
@@ -712,15 +714,21 @@ public class SchemaInterceptor extends BaseInterceptor
             AttributeType attributeType = attribute.getAttributeType();
 
             // We don't allow modification of operational attributes
-            if ( !attributeType.isUserModifiable()
-                && ( !attributeType.equals( MODIFIERS_NAME_AT )
+            if ( !attributeType.isUserModifiable() )
+            {
+                if( modifyContext.isReplEvent() && modifyContext.getSession().isAdministrator() )
+                {
+                    // this is a replication related modification, allow the operation
+                }
+                else if( ( !attributeType.equals( MODIFIERS_NAME_AT )
                     && ( !attributeType.equals( MODIFY_TIMESTAMP_AT ) )
                     && ( !attributeType.equals( ENTRY_CSN_AT ) )
                     && ( !PWD_POLICY_STATE_ATTRIBUTE_TYPES.contains( attributeType ) ) ) )
-            {
-                String msg = I18n.err( I18n.ERR_52, attributeType );
-                LOG.error( msg );
-                throw new LdapNoPermissionException( msg );
+                {
+                    String msg = I18n.err( I18n.ERR_52, attributeType );
+                    LOG.error( msg );
+                    throw new LdapNoPermissionException( msg );
+                }
             }
 
             switch ( mod.getOperation() )
@@ -882,9 +890,7 @@ public class SchemaInterceptor extends BaseInterceptor
          */
         public boolean accept( SearchOperationContext operationContext, Entry entry ) throws LdapException
         {
-            ServerEntryUtils.filterContents(
-                operationContext.getSession().getDirectoryService().getSchemaManager(),
-                operationContext, entry );
+            ServerEntryUtils.filterContents( schemaManager, operationContext, entry );
 
             return true;
         }
@@ -1188,9 +1194,7 @@ public class SchemaInterceptor extends BaseInterceptor
             return;
         }
 
-        Entry entry = modifyContext.getEntry();
-        List<Modification> modifications = modifyContext.getModItems();
-        checkModifyEntry( dn, entry, modifications );
+        checkModifyEntry( modifyContext );
 
         next( modifyContext );
     }
@@ -1308,7 +1312,7 @@ public class SchemaInterceptor extends BaseInterceptor
                 }
                 else
                 {
-                    return new BaseEntryFilteringCursor( new EmptyCursor<Entry>(), searchContext, schemaManager );
+                    return new EntryFilteringCursorImpl( new EmptyCursor<Entry>(), searchContext, schemaManager );
                 }
 
                 AttributeType nodeAt = node.getAttributeType();
@@ -1322,12 +1326,12 @@ public class SchemaInterceptor extends BaseInterceptor
                     Entry serverEntry = SchemaService.getSubschemaEntry( directoryService,
                         searchContext );
                     serverEntry.setDn( base );
-                    return new BaseEntryFilteringCursor( new SingletonCursor<Entry>( serverEntry ), searchContext,
+                    return new EntryFilteringCursorImpl( new SingletonCursor<Entry>( serverEntry ), searchContext,
                         schemaManager );
                 }
                 else
                 {
-                    return new BaseEntryFilteringCursor( new EmptyCursor<Entry>(), searchContext, schemaManager );
+                    return new EntryFilteringCursorImpl( new EmptyCursor<Entry>(), searchContext, schemaManager );
                 }
             }
             else if ( filter instanceof ObjectClassNode )
@@ -1336,14 +1340,14 @@ public class SchemaInterceptor extends BaseInterceptor
                 Entry serverEntry = SchemaService.getSubschemaEntry( directoryService,
                     searchContext );
                 serverEntry.setDn( base );
-                EntryFilteringCursor cursor = new BaseEntryFilteringCursor(
+                EntryFilteringCursor cursor = new EntryFilteringCursorImpl(
                     new SingletonCursor<Entry>( serverEntry ), searchContext, schemaManager );
                 return cursor;
             }
         }
 
         // In any case not handled previously, just return an empty result
-        return new BaseEntryFilteringCursor( new EmptyCursor<Entry>(), searchContext, schemaManager );
+        return new EntryFilteringCursorImpl( new EmptyCursor<Entry>(), searchContext, schemaManager );
     }
 
 
